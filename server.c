@@ -3,9 +3,13 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <stdbool.h>
+#include <errno.h>
 
 #define BUFFER_SIZE 100
-#define CMD_MAX_SIZE 30
+#define MAX_CMD_SIZE 100
+
+#define PORT 9000
 
 enum CommandId
 {
@@ -36,76 +40,78 @@ struct Command g_cmd_buffer[BUFFER_SIZE];
 int g_cmd_index_added = -1;
 pthread_mutex_t mtx_index_added = PTHREAD_MUTEX_INITIALIZER;
 int g_cmd_index_exec = -1;
-int g_cmd_index_ack = -1;
-pthread_mutex_t mtx_index_ack = PTHREAD_MUTEX_INITIALIZER;
-int g_socket;
-struct sockaddr_in g_server_address;
-struct sockaddr_in g_client_address;
+// pthread_mutex_t mtx_index_added = PTHREAD_MUTEX_INITIALIZER;
+
+int g_serversock, g_clientsock;
+struct sockaddr_in g_server_addr, g_client_addr;
 
 int setLastAddedIndex(int new_value);
 int getLastAddedIndex();
-int setLastAckIndex(int new_value);
-int getLastAckIndex();
-void sendAckMessage(cmd_id_t cmd_id);
-void *ackThreadFunction();
-void readCmd(char *message, int message_size);
-void *receiverThreadFunction();
-int initSocket();
+
+int initConnection();
+
+void *connectionThreadFunction();
+void readMsg(char *msg, int msg_size);
+struct Command decodeCmd(char *message, int message_size);
+void storeCmd(struct Command cmd);
+bool hasReceived(int cmd_seq);
 
 int main()
 {
-    if (initSocket() < 0)
+    if (initConnection() < 0)
+    {
         return -1;
+    }
 
-    pthread_t receiver_thread;
-    pthread_create(&receiver_thread, NULL, receiverThreadFunction, NULL);
+    pthread_t connection_thread;
+    pthread_create(&connection_thread, NULL, connectionThreadFunction, NULL);
 
-    pthread_t ack_thread;
-    pthread_create(&ack_thread, NULL, ackThreadFunction, NULL);
-
-    pthread_join(receiver_thread, NULL);
-    pthread_join(ack_thread, NULL);
+    pthread_join(connection_thread, NULL);
 
     return 0;
 }
 
-int initSocket()
+int initConnection()
 {
-    g_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (g_socket < 0)
+    /* Create the TCP socket */
+    if ((g_serversock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
     {
-        printf("[ERROR] Couldn't create socket.");
         return -1;
     }
-    printf("Socket created...\n");
+    printf("Socket created!\n");
 
-    g_server_address.sin_family = AF_INET;
-    g_server_address.sin_port = htons(9000);
-    g_server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
+    g_server_addr.sin_family = AF_INET;                     /* Internet/IP */
+    g_server_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); /* Incoming addr */
+    g_server_addr.sin_port = htons(PORT);                   /* server port */
 
-    if (bind(g_socket, (struct sockaddr *)&g_server_address, sizeof(g_server_address)) < 0)
+    /* Bind the server socket */
+    if (bind(g_serversock, (struct sockaddr *)&g_server_addr,
+             sizeof(g_server_addr)) < 0)
     {
-        printf("[ERROR] Couldn't bind socket.");
         return -1;
     }
-    printf("Socket bound...\n");
+    printf("Socket bound!\n");
+
+    listen(g_serversock, 5);
+    int sock_len = sizeof(g_client_addr);
+    g_clientsock = accept(g_serversock, (struct sockaddr *)&g_client_addr, &sock_len);
+    if (g_clientsock < 0)
+    {
+        printf("FAILED TO CONNECT! ERROR:%d\n", g_clientsock);
+        return -1;
+    }
+    printf("Client connected! IP:%s\n", inet_ntoa(g_client_addr.sin_addr));
 
     return 0;
 }
 
-/*
-    Esta thread recebe e lida com comandos enviados pelo client
-*/
-void *receiverThreadFunction()
+void *connectionThreadFunction()
 {
-    struct sockaddr_in *client_addr;
-
     while (1)
     {
-        int client_struct_length = sizeof(*client_addr);
-
-        char client_message[CMD_MAX_SIZE];
-        memset(client_message, 0, BUFFER_SIZE * sizeof(char));
+        char client_message[MAX_CMD_SIZE];
+        // memset(client_message, 0, BUFFER_SIZE * sizeof(char));
 
         // Receive client's message:
         // MSG_WAITALL (since Linux 2.2)
@@ -114,71 +120,62 @@ void *receiverThreadFunction()
         // an error or disconnect occurs, or the next data to be received is of a different
         // type than that returned.
 
-        if (recvfrom(g_socket, client_message, BUFFER_SIZE, 0,
-                     (struct sockaddr *restrict)client_addr, &client_struct_length) < 0)
-        {
-            printf("[ERROR] Couldn't receive message!\n");
-        }
+        readMsg(client_message, sizeof(client_message));
 
-        readCmd(client_message, sizeof(client_message));
+        struct Command cmd = decodeCmd(client_message, sizeof(client_message));
+
+        if (!hasReceived(cmd.seq))
+        {
+            sendAck(cmd);
+            storeCmd(cmd);
+        }
     }
 }
 
-/*
-    Esta funcao lê a mensagem em string, transforma na struct Command e adiciona ao buffer de comandos
-*/
-void readCmd(char *message, int message_size)
+void readMsg(char *msg, int msg_size)
+{
+    if (recv(g_clientsock, msg, msg_size, 0) < 0)
+    {
+        printf("[ERROR recvfrom] %s\n", strerror(errno));
+    }
+}
+
+struct Command decodeCmd(char *message, int message_size)
 {
     // TODO: Fazer esta função
     printf("Msg from client: %s\n", message);
     int last_added = getLastAddedIndex();
 
     struct Command cmd = {.cmd_id = last_added, .seq = 10, .value = 30};
+
+    return cmd;
+}
+
+bool hasReceived(int cmd_seq)
+{
+    // TODO: adicionar teste se seq esta em um array
+    return false;
+}
+
+void storeCmd(struct Command cmd)
+{
+    int last_added = getLastAddedIndex();
     g_cmd_buffer[last_added + 1] = cmd;
     setLastAddedIndex(last_added + 1);
+    // TODO: adicionar seq a algum array
 }
 
-/*
-    Esta thread manda mensagens de confirmação para o client
-*/
-void *ackThreadFunction()
+void sendAck(struct Command cmd)
 {
-    while (1)
+    char ack_response[MAX_CMD_SIZE];
+    snprintf(ack_response, sizeof(ack_response), "id=%d#seq=%d!value=%d", cmd.cmd_id, cmd.value, cmd.value);
+
+    if (sendto(g_clientsock, ack_response, strlen(ack_response), 0,
+               &g_client_addr, sizeof(g_client_addr)) < 0)
     {
-        int last_added = getLastAddedIndex();
-        int last_ack = getLastAckIndex();
-
-        if (last_added > last_ack)
-        {
-            // ENVIAR RESPOSTA PARA O CLIENT AQUI
-            sendAckMessage(g_cmd_buffer[last_ack + 1].cmd_id);
-            setLastAckIndex(last_ack + 1);
-        }
+        printf("Unable to send message\n");
+        return;
     }
-}
-
-/*
-    Esta funcao manda a resposta de confirmaçao para o client de acordo com o cmd_id
-*/
-void sendAckMessage(cmd_id_t cmd_id)
-{
-    printf("CMD_ID = %d ACK \n", cmd_id);
-}
-
-int getLastAckIndex()
-{
-    pthread_mutex_lock(&mtx_index_ack);
-    int last_ack = g_cmd_index_ack;
-    pthread_mutex_unlock(&mtx_index_ack);
-    return last_ack;
-}
-
-int setLastAckIndex(int new_value)
-{
-    pthread_mutex_lock(&mtx_index_ack);
-    g_cmd_index_ack = new_value;
-    pthread_mutex_unlock(&mtx_index_ack);
-    return new_value;
 }
 
 int getLastAddedIndex()
