@@ -150,57 +150,55 @@ void *plantThreadFunction()
     float in_flux = 0;
     float out_flux = 0;
 
-    int T = 0;          // TODO: contar tempo
+    int T = 0; // TODO: contar tempo
     int dT = 10;
-    
-    struct Tank tank = {
-        .level = 0.4, 
-        .max_flux = 100, 
-        .in_angle = 50,
-        .out_angle = 0
-    };
 
-    struct Command cmd = { 
+    struct Tank tank = {
+        .level = 0.4,
+        .max_flux = 100,
+        .in_angle = 50,
+        .out_angle = 0};
+
+    struct Command cmd = {
         .cmd_id = Unknown,
         .seq = 0,
-        .value = 0
-    };
-    
-    while(1)
+        .value = 0};
+
+    while (1)
     {
-        //if (cmd != NULL)          // TODO: verificar se tem comando pra usar
+        // if (cmd != NULL)          // TODO: verificar se tem comando pra usar
         //{
-            switch (cmd.cmd_id)     // talvez mudar para cmd_id = Unknown quando cmd for usado
-            {
-            case OpenValve:
-                delta += cmd.value;
-                break;
+        switch (cmd.cmd_id) // talvez mudar para cmd_id = Unknown quando cmd for usado
+        {
+        case OpenValve:
+            delta += cmd.value;
+            break;
 
-            case CloseValve:
-                delta += cmd.value;
-                break;
+        case CloseValve:
+            delta += cmd.value;
+            break;
 
-            case SetMax:
-                delta += cmd.value;
-                break;
+        case SetMax:
+            delta += cmd.value;
+            break;
 
-            default:
-                break;
-            }
+        default:
+            break;
+        }
         //}
 
         if (delta > 0)
         {
-           if (delta < 0.01 * dT)
-           {
+            if (delta < 0.01 * dT)
+            {
                 tank.in_angle += delta;
                 delta = 0;
-           }
-           else
-           {
+            }
+            else
+            {
                 tank.in_angle += 0.01 * dT;
                 delta -= 0.01 * dT;
-           }
+            }
         }
         else
         {
@@ -209,44 +207,45 @@ void *plantThreadFunction()
                 tank.in_angle += delta;
                 delta = 0;
             }
-            else{
+            else
+            {
                 tank.in_angle -= 0.01 * dT;
                 delta += 0.01 * dT;
             }
         }
-        
+
         tank.out_angle = tankOutAngle(T);
-        
+
         in_flux = sin(M_PI / 2 * tank.in_angle / 100);
-        out_flux = (tank.max_flux / 100) * (tank.level / 1.25 + 0.2) * 
-            sin(M_PI / 2 * tank.out_angle / 100);
+        out_flux = (tank.max_flux / 100) * (tank.level / 1.25 + 0.2) *
+                   sin(M_PI / 2 * tank.out_angle / 100);
         tank.level += 0.00002 * dT * (in_flux - out_flux);
     }
 }
 
 int tankOutAngle(int T)
 {
-    if(T <= 0)
+    if (T <= 0)
     {
         return 50;
     }
-    else if(T <= 20000)
+    else if (T <= 20000)
     {
-        return 50 + T/400;
+        return 50 + T / 400;
     }
-    else if(T <= 30000)
+    else if (T <= 30000)
     {
         return 100;
     }
-    else if(T <= 50000)
+    else if (T <= 50000)
     {
         return 100 - (T - 30000) / 250;
     }
-    else if(T <= 70000)
+    else if (T <= 70000)
     {
         return 20 - (T - 50000) / 1000;
     }
-    else if(T <= 100000)
+    else if (T <= 100000)
     {
         return 40 + 20 * cos((T - 70000) * 2 * M_PI / 10000);
     }
@@ -626,102 +625,6 @@ char *start()
     // TODO: implementar
     return "Start#OK!";
 }
-
-// int getLastAddedIndex()
-// {
-/* Wait for a lock on a mutex object
-
-    int pthread_mutex_lock(pthread_mutex_t* mutex);
-
-    Locks a mutex object, which identifies a mutex. Mutexes are used to protect shared
-    resources. If the mutex is already locked by another thread, the thread waits for the mutex
-    to become available. The thread that has locked a mutex becomes its current owner and
-    remains the owner until the same thread has unlocked it.
-
-    When the mutex has the attribute of recursive, the use of the lock may be different. When
-    this kind of mutex is locked multiple times by the same thread, then a count is incremented
-    and no waiting thread is posted. The owning thread must call pthread_mutex_unlock() the same
-    number of times to decrement the count to zero.
-
-    mutex
-        A pointer to the pthread_mutex_t object that you want to lock.
-    return
-        If successful, pthread_mutex_lock() returns 0. If unsuccessful, pthread_mutex_lock()
-        returns -1 and sets errno.
-*/
-// pthread_mutex_lock(&mtx_index_added);
-// int last_added = g_cmd_index_added;
-/* Unlock a mutex object
-
-    int pthread_mutex_unlock(pthread_mutex_t* mutex);
-
-    Releases a mutex object. If one or more threads are waiting to lock the mutex,
-    pthread_mutex_unlock() causes one of those threads to return from pthread_mutex_lock() with
-    the mutex object acquired. If no threads are waiting for the mutex, the mutex unlocks with
-    no current owner.
-
-    When the mutex has the attribute of recursive the use of the lock may be different. When
-    this kind of mutex is locked multiple times by the same thread, then unlock will decrement
-    the count and no waiting thread is posted to continue running with the lock. If the count is
-    decremented to zero, then the mutex is released and if any thread is waiting it is posted.
-
-    mutex
-        A pointer to the pthread_mutex_t object that you want to unlock.
-    return
-        If successful, pthread_mutex_unlock() returns 0. If unsuccessful, pthread_mutex_unlock()
-        returns -1 and sets errno.
-*/
-// pthread_mutex_unlock(&mtx_index_added);
-// return last_added;
-// }
-
-// int setLastAddedIndex(int new_value)
-// {
-/* Wait for a lock on a mutex object
-
-    int pthread_mutex_lock(pthread_mutex_t* mutex);
-
-    Locks a mutex object, which identifies a mutex. Mutexes are used to protect shared
-    resources. If the mutex is already locked by another thread, the thread waits for the mutex
-    to become available. The thread that has locked a mutex becomes its current owner and
-    remains the owner until the same thread has unlocked it.
-
-    When the mutex has the attribute of recursive, the use of the lock may be different. When
-    this kind of mutex is locked multiple times by the same thread, then a count is incremented
-    and no waiting thread is posted. The owning thread must call pthread_mutex_unlock() the same
-    number of times to decrement the count to zero.
-
-    mutex
-        A pointer to the pthread_mutex_t object that you want to lock.
-    return
-        If successful, pthread_mutex_lock() returns 0. If unsuccessful, pthread_mutex_lock()
-        returns -1 and sets errno.
-*/
-// pthread_mutex_lock(&mtx_index_added);
-// g_cmd_index_added = new_value;
-/* Unlock a mutex object
-
-    int pthread_mutex_unlock(pthread_mutex_t* mutex);
-
-    Releases a mutex object. If one or more threads are waiting to lock the mutex,
-    pthread_mutex_unlock() causes one of those threads to return from pthread_mutex_lock() with
-    the mutex object acquired. If no threads are waiting for the mutex, the mutex unlocks with
-    no current owner.
-
-    When the mutex has the attribute of recursive the use of the lock may be different. When
-    this kind of mutex is locked multiple times by the same thread, then unlock will decrement
-    the count and no waiting thread is posted to continue running with the lock. If the count is
-    decremented to zero, then the mutex is released and if any thread is waiting it is posted.
-
-    mutex
-        A pointer to the pthread_mutex_t object that you want to unlock.
-    return
-        If successful, pthread_mutex_unlock() returns 0. If unsuccessful, pthread_mutex_unlock()
-        returns -1 and sets errno.
-*/
-// pthread_mutex_unlock(&mtx_index_added);
-// return new_value;
-// }
 
 void testDecode()
 {

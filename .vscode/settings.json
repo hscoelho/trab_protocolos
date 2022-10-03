@@ -1,3 +1,6 @@
 {
-    "ros.distro": "galactic"
+    "ros.distro": "galactic",
+    "files.associations": {
+        "*.tcc": "c"
+    }
 }
