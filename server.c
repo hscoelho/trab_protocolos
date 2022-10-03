@@ -34,26 +34,27 @@ struct Command
     Sobre o buffer de comandos:
     Seria melhor se esse g_cmd_buffer fosse um buffer "circular"
     Outra estrutura de dados que seria indicada é o std::queue do C++, que é um buffer FIFO
-*/
 
-struct Command g_cmd_buffer[BUFFER_SIZE];
-int g_cmd_index_added = -1;
-pthread_mutex_t mtx_index_added = PTHREAD_MUTEX_INITIALIZER;
-int g_cmd_index_exec = -1;
+    Acho que não vai precisar um buffer de comandos
+*/
+// struct Command g_cmd_buffer[BUFFER_SIZE];
+// int g_cmd_index_added = -1;
+// pthread_mutex_t mtx_index_added = PTHREAD_MUTEX_INITIALIZER;
+// int g_cmd_index_exec = -1;
 // pthread_mutex_t mtx_index_added = PTHREAD_MUTEX_INITIALIZER;
 
 int g_serversock, g_clientsock;
 struct sockaddr_in g_server_addr, g_client_addr;
 
-int setLastAddedIndex(int new_value);
-int getLastAddedIndex();
+// int setLastAddedIndex(int new_value);
+// int getLastAddedIndex();
 
 int initConnection();
 
 void *connectionThreadFunction();
 void readMsg(char *msg, int msg_size);
 struct Command decodeCmd(char *message, int message_size);
-void storeCmd(struct Command cmd);
+void sendAck(struct Command cmd);
 bool hasReceived(int cmd_seq);
 
 char *proccessCmd(struct Command cmd);
@@ -68,9 +69,6 @@ void testDecode();
 
 int main()
 {
-    // testDecode();
-    // return;
-
     if (initConnection() < 0)
     {
         return -1;
@@ -282,7 +280,7 @@ void *connectionThreadFunction()
         if (!hasReceived(cmd.seq))
         {
             sendAck(cmd);
-            storeCmd(cmd);
+            // processCmd
         }
     }
 }
@@ -319,11 +317,8 @@ void readMsg(char *msg, int msg_size)
 
 struct Command decodeCmd(char *message, int message_size)
 {
-    // TODO: Alocar cmd_id transformando pra enum
     // TODO: Testar pra quando a mensagem não estiver no formato padrão: OpenValve##⟨value⟩!;
-    // OpenValve#<seq>#⟨value⟩;
     printf("Msg from client: %s\n", message);
-    int last_added = getLastAddedIndex();
 
     // char buf[] = "GetLevel!"
     // char buf[] = "SetMax#⟨value⟩!";
@@ -428,14 +423,6 @@ bool hasReceived(int cmd_seq)
     return false;
 }
 
-void storeCmd(struct Command cmd)
-{
-    int last_added = getLastAddedIndex();
-    g_cmd_buffer[last_added + 1] = cmd;
-    setLastAddedIndex(last_added + 1);
-    // TODO: adicionar seq a algum array
-}
-
 void sendAck(struct Command cmd)
 {
     char ack_response[MAX_CMD_SIZE];
@@ -516,101 +503,101 @@ char *start()
     return "Start#OK!";
 }
 
-int getLastAddedIndex()
-{
-    /* Wait for a lock on a mutex object
+// int getLastAddedIndex()
+// {
+/* Wait for a lock on a mutex object
 
-        int pthread_mutex_lock(pthread_mutex_t* mutex);
+    int pthread_mutex_lock(pthread_mutex_t* mutex);
 
-        Locks a mutex object, which identifies a mutex. Mutexes are used to protect shared
-        resources. If the mutex is already locked by another thread, the thread waits for the mutex
-        to become available. The thread that has locked a mutex becomes its current owner and
-        remains the owner until the same thread has unlocked it.
+    Locks a mutex object, which identifies a mutex. Mutexes are used to protect shared
+    resources. If the mutex is already locked by another thread, the thread waits for the mutex
+    to become available. The thread that has locked a mutex becomes its current owner and
+    remains the owner until the same thread has unlocked it.
 
-        When the mutex has the attribute of recursive, the use of the lock may be different. When
-        this kind of mutex is locked multiple times by the same thread, then a count is incremented
-        and no waiting thread is posted. The owning thread must call pthread_mutex_unlock() the same
-        number of times to decrement the count to zero.
+    When the mutex has the attribute of recursive, the use of the lock may be different. When
+    this kind of mutex is locked multiple times by the same thread, then a count is incremented
+    and no waiting thread is posted. The owning thread must call pthread_mutex_unlock() the same
+    number of times to decrement the count to zero.
 
-        mutex
-            A pointer to the pthread_mutex_t object that you want to lock.
-        return
-            If successful, pthread_mutex_lock() returns 0. If unsuccessful, pthread_mutex_lock()
-            returns -1 and sets errno.
-    */
-    pthread_mutex_lock(&mtx_index_added);
-    int last_added = g_cmd_index_added;
-    /* Unlock a mutex object
+    mutex
+        A pointer to the pthread_mutex_t object that you want to lock.
+    return
+        If successful, pthread_mutex_lock() returns 0. If unsuccessful, pthread_mutex_lock()
+        returns -1 and sets errno.
+*/
+// pthread_mutex_lock(&mtx_index_added);
+// int last_added = g_cmd_index_added;
+/* Unlock a mutex object
 
-        int pthread_mutex_unlock(pthread_mutex_t* mutex);
+    int pthread_mutex_unlock(pthread_mutex_t* mutex);
 
-        Releases a mutex object. If one or more threads are waiting to lock the mutex,
-        pthread_mutex_unlock() causes one of those threads to return from pthread_mutex_lock() with
-        the mutex object acquired. If no threads are waiting for the mutex, the mutex unlocks with
-        no current owner.
+    Releases a mutex object. If one or more threads are waiting to lock the mutex,
+    pthread_mutex_unlock() causes one of those threads to return from pthread_mutex_lock() with
+    the mutex object acquired. If no threads are waiting for the mutex, the mutex unlocks with
+    no current owner.
 
-        When the mutex has the attribute of recursive the use of the lock may be different. When
-        this kind of mutex is locked multiple times by the same thread, then unlock will decrement
-        the count and no waiting thread is posted to continue running with the lock. If the count is
-        decremented to zero, then the mutex is released and if any thread is waiting it is posted.
+    When the mutex has the attribute of recursive the use of the lock may be different. When
+    this kind of mutex is locked multiple times by the same thread, then unlock will decrement
+    the count and no waiting thread is posted to continue running with the lock. If the count is
+    decremented to zero, then the mutex is released and if any thread is waiting it is posted.
 
-        mutex
-            A pointer to the pthread_mutex_t object that you want to unlock.
-        return
-            If successful, pthread_mutex_unlock() returns 0. If unsuccessful, pthread_mutex_unlock()
-            returns -1 and sets errno.
-    */
-    pthread_mutex_unlock(&mtx_index_added);
-    return last_added;
-}
+    mutex
+        A pointer to the pthread_mutex_t object that you want to unlock.
+    return
+        If successful, pthread_mutex_unlock() returns 0. If unsuccessful, pthread_mutex_unlock()
+        returns -1 and sets errno.
+*/
+// pthread_mutex_unlock(&mtx_index_added);
+// return last_added;
+// }
 
-int setLastAddedIndex(int new_value)
-{
-    /* Wait for a lock on a mutex object
+// int setLastAddedIndex(int new_value)
+// {
+/* Wait for a lock on a mutex object
 
-        int pthread_mutex_lock(pthread_mutex_t* mutex);
+    int pthread_mutex_lock(pthread_mutex_t* mutex);
 
-        Locks a mutex object, which identifies a mutex. Mutexes are used to protect shared
-        resources. If the mutex is already locked by another thread, the thread waits for the mutex
-        to become available. The thread that has locked a mutex becomes its current owner and
-        remains the owner until the same thread has unlocked it.
+    Locks a mutex object, which identifies a mutex. Mutexes are used to protect shared
+    resources. If the mutex is already locked by another thread, the thread waits for the mutex
+    to become available. The thread that has locked a mutex becomes its current owner and
+    remains the owner until the same thread has unlocked it.
 
-        When the mutex has the attribute of recursive, the use of the lock may be different. When
-        this kind of mutex is locked multiple times by the same thread, then a count is incremented
-        and no waiting thread is posted. The owning thread must call pthread_mutex_unlock() the same
-        number of times to decrement the count to zero.
+    When the mutex has the attribute of recursive, the use of the lock may be different. When
+    this kind of mutex is locked multiple times by the same thread, then a count is incremented
+    and no waiting thread is posted. The owning thread must call pthread_mutex_unlock() the same
+    number of times to decrement the count to zero.
 
-        mutex
-            A pointer to the pthread_mutex_t object that you want to lock.
-        return
-            If successful, pthread_mutex_lock() returns 0. If unsuccessful, pthread_mutex_lock()
-            returns -1 and sets errno.
-    */
-    pthread_mutex_lock(&mtx_index_added);
-    g_cmd_index_added = new_value;
-    /* Unlock a mutex object
+    mutex
+        A pointer to the pthread_mutex_t object that you want to lock.
+    return
+        If successful, pthread_mutex_lock() returns 0. If unsuccessful, pthread_mutex_lock()
+        returns -1 and sets errno.
+*/
+// pthread_mutex_lock(&mtx_index_added);
+// g_cmd_index_added = new_value;
+/* Unlock a mutex object
 
-        int pthread_mutex_unlock(pthread_mutex_t* mutex);
+    int pthread_mutex_unlock(pthread_mutex_t* mutex);
 
-        Releases a mutex object. If one or more threads are waiting to lock the mutex,
-        pthread_mutex_unlock() causes one of those threads to return from pthread_mutex_lock() with
-        the mutex object acquired. If no threads are waiting for the mutex, the mutex unlocks with
-        no current owner.
+    Releases a mutex object. If one or more threads are waiting to lock the mutex,
+    pthread_mutex_unlock() causes one of those threads to return from pthread_mutex_lock() with
+    the mutex object acquired. If no threads are waiting for the mutex, the mutex unlocks with
+    no current owner.
 
-        When the mutex has the attribute of recursive the use of the lock may be different. When
-        this kind of mutex is locked multiple times by the same thread, then unlock will decrement
-        the count and no waiting thread is posted to continue running with the lock. If the count is
-        decremented to zero, then the mutex is released and if any thread is waiting it is posted.
+    When the mutex has the attribute of recursive the use of the lock may be different. When
+    this kind of mutex is locked multiple times by the same thread, then unlock will decrement
+    the count and no waiting thread is posted to continue running with the lock. If the count is
+    decremented to zero, then the mutex is released and if any thread is waiting it is posted.
 
-        mutex
-            A pointer to the pthread_mutex_t object that you want to unlock.
-        return
-            If successful, pthread_mutex_unlock() returns 0. If unsuccessful, pthread_mutex_unlock()
-            returns -1 and sets errno.
-    */
-    pthread_mutex_unlock(&mtx_index_added);
-    return new_value;
-}
+    mutex
+        A pointer to the pthread_mutex_t object that you want to unlock.
+    return
+        If successful, pthread_mutex_unlock() returns 0. If unsuccessful, pthread_mutex_unlock()
+        returns -1 and sets errno.
+*/
+// pthread_mutex_unlock(&mtx_index_added);
+// return new_value;
+// }
 
 void testDecode()
 {
