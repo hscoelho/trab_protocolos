@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <math.h>
 
 #define BUFFER_SIZE 100
 #define MAX_CMD_SIZE 100
@@ -30,6 +31,14 @@ struct Command
     int value;
 };
 
+struct Tank
+{
+    double level;
+    double max_flux;
+    double in_angle;
+    double out_angle;
+};
+
 /*
     Sobre o buffer de comandos:
     Seria melhor se esse g_cmd_buffer fosse um buffer "circular"
@@ -51,6 +60,8 @@ int getLastAddedIndex();
 int initConnection();
 
 void *connectionThreadFunction();
+void *plantThreadFunction();
+
 void readMsg(char *msg, int msg_size);
 struct Command decodeCmd(char *message, int message_size);
 void storeCmd(struct Command cmd);
@@ -73,6 +84,8 @@ int main()
     }
 
     pthread_t connection_thread;
+    pthread_t plant_thread;
+
     /* Create a thread
 
         int pthread_create(pthread_t *thread, const pthread_attr_t *attr, 
@@ -102,6 +115,8 @@ int main()
             ENOMEM.
     */
     pthread_create(&connection_thread, NULL, connectionThreadFunction, NULL);
+    pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
+
     /* Wait for a thread to end
 
         int pthread_join(pthread_t thread, void **value_ptr);
@@ -122,8 +137,117 @@ int main()
             sets errno to one of the following values: EDEADLK, EINVAL, ESRCH.
     */
     pthread_join(connection_thread, NULL);
+    pthread_join(plant_thread, NULL);
 
     return 0;
+}
+
+void *plantThreadFunction()
+{
+    float delta = 0;
+    float in_flux = 0;
+    float out_flux = 0;
+
+    int T = 0;          // TODO: contar tempo
+    int dT = 10;
+    
+    struct Tank tank = {
+        .level = 0.4, 
+        .max_flux = 100, 
+        .in_angle = 50,
+        .out_angle = 0
+    };
+
+    struct Command cmd = { 
+        .cmd_id = Unknown,
+        .seq = 0,
+        .value = 0
+    };
+    
+    while(1)
+    {
+        //if (cmd != NULL)          // TODO: verificar se tem comando pra usar
+        //{
+            switch (cmd.cmd_id)     // talvez mudar para cmd_id = Unknown quando cmd for usado
+            {
+            case OpenValve:
+                delta += cmd.value;
+                break;
+
+            case CloseValve:
+                delta += cmd.value;
+                break;
+
+            case SetMax:
+                delta += cmd.value;
+                break;
+
+            default:
+                break;
+            }
+        //}
+
+        if (delta > 0)
+        {
+           if (delta < 0.01 * dT)
+           {
+                tank.in_angle += delta;
+                delta = 0;
+           }
+           else
+           {
+                tank.in_angle += 0.01 * dT;
+                delta -= 0.01 * dT;
+           }
+        }
+        else
+        {
+            if (delta > -0.01 & dT)
+            {
+                tank.in_angle += delta;
+                delta = 0;
+            }
+            else{
+                tank.in_angle -= 0.01 * dT;
+                delta += 0.01 * dT;
+            }
+        }
+        
+        tank.out_angle = tankOutAngle(T);
+        
+        in_flux = sin(M_PI / 2 * tank.in_angle / 100);
+        out_flux = (tank.max_flux / 100) * (tank.level / 1.25 + 0.2) * 
+            sin(M_PI / 2 * tank.out_angle / 100);
+        tank.level += 0.00002 * dT * (in_flux - out_flux);
+    }
+}
+
+int tankOutAngle(int T)
+{
+    if(T <= 0)
+    {
+        return 50;
+    }
+    else if(T <= 20000)
+    {
+        return 50 + T/400;
+    }
+    else if(T <= 30000)
+    {
+        return 100;
+    }
+    else if(T <= 50000)
+    {
+        return 100 - (T - 30000) / 250;
+    }
+    else if(T <= 70000)
+    {
+        return 20 - (T - 50000) / 1000;
+    }
+    else if(T <= 100000)
+    {
+        return 40 + 20 * cos((T - 70000) * 2 * M_PI / 10000);
+    }
 }
 
 int initConnection()
