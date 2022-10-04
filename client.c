@@ -250,14 +250,17 @@ void *graphThreadFunction()
     data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
 
     struct timespec start_time;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
-    time_t start_time_s = start_time.tv_sec;
+    // clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+    // time_t start_time_s = start_time.tv_sec;
+
+    time_t start_time_s = time(NULL);
 
     while (true)
     {
         struct timespec curr_time;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
-        time_t curr_time_s = curr_time.tv_sec;
+        // clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
+        // time_t curr_time_s = curr_time.tv_sec;
+        time_t curr_time_s = time(NULL);
         int curr_plant = getCurrPlantLevel();
         int curr_valve = getCurrValveLevel();
         datadraw(data, curr_time_s - start_time_s, curr_plant, curr_valve, 0);
