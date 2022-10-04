@@ -51,13 +51,13 @@ int main()
     srand(time(NULL));
 
     pthread_t control_thread;
-    pthread_t graph_thread;
+    // pthread_t graph_thread;
 
     pthread_create(&control_thread, NULL, controlThreadFunction, NULL);
-    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
+    // pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
 
     pthread_join(control_thread, NULL);
-    pthread_join(graph_thread, NULL);
+    // pthread_join(graph_thread, NULL);
 
     return 0;
 }
@@ -103,6 +103,7 @@ int getAck(char *expected_msg)
     receiveMsg(ack, sizeof(ack));
     if (strcmp(ack, expected_msg) != 0)
     {
+        printf("Received ACK: %s, Expected: %s\n", ack, expected_msg);
         return -1;
     }
     return 0;
@@ -116,20 +117,20 @@ void *controlThreadFunction()
     {
         int plant_level = setCurrPlantLevel(getServerPlantLevel());
 
-        int seq = rand();
+        int seq = rand() % 10000;
 
         char cmd[MAX_CMD_SIZE];
         char ack[MAX_CMD_SIZE];
         if (plant_level < 80 && !isValveOpen)
         {
             snprintf(cmd, sizeof(cmd), "OpenValve#%d#50!", seq);
-            snprintf(ack, sizeof(ack), "Open#%d", seq);
+            snprintf(ack, sizeof(ack), "Open#%d!", seq);
             setCurrValveLevel(50);
         }
         else if (plant_level > 80 && isValveOpen)
         {
             snprintf(cmd, sizeof(cmd), "CloseValve#%d#50!", seq);
-            snprintf(ack, sizeof(ack), "Close#%d", seq);
+            snprintf(ack, sizeof(ack), "Close#%d!", seq);
             setCurrValveLevel(0);
         }
 
@@ -139,7 +140,8 @@ void *controlThreadFunction()
             printf("Received wrong ack!");
         }
 
-        usleep(25000);
+        // usleep(25000);
+        sleep(1);
     }
 }
 
@@ -151,7 +153,7 @@ int sendMsg(char *msg, int msg_size)
         return -1;
     }
 
-    printf("Message: '%s' sent...\n", msg);
+    printf("SENT: %s\n", msg);
 }
 
 int receiveMsg(char *out_msg, int msg_size)
@@ -161,6 +163,7 @@ int receiveMsg(char *out_msg, int msg_size)
         printf("[ERROR] recv: %s", strerror(errno));
         return -1;
     }
+    printf("RECEIVED: %s\n", out_msg);
     return 0;
 }
 
@@ -211,14 +214,11 @@ int decodePlantLevel(char *msg)
     char resp[MAX_CMD_SIZE];
     snprintf(resp, sizeof(resp), "%s", msg); // isso é feito porque o strtok modifica a string
 
-    printf("resp: %s\n", resp);
     char *ack = strtok(resp, "#");
     if (strcmp(ack, "Level") != 0)
         return -1;
 
-    printf("ack: %s\n", ack);
     char *level_str = strtok(NULL, "#");
-    printf("level: %s\n", level_str);
     int level = atoi(level_str);
 
     return level;
@@ -230,17 +230,18 @@ void *graphThreadFunction()
 
     data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
 
-    struct timespec *time;
-    clock_gettime(CLOCK_REALTIME, time);
-    time_t start_time = time->tv_sec;
+    struct timespec start_time;
+    clock_gettime(CLOCK_REALTIME, &start_time);
+    time_t start_time_s = start_time.tv_sec;
 
     while (true)
     {
-        clock_gettime(CLOCK_REALTIME, time);
-        time_t curr_time = time->tv_sec;
+        struct timespec curr_time;
+        clock_gettime(CLOCK_REALTIME, &time);
+        time_t curr_time_s = curr_time.tv_sec;
         int curr_plant = getCurrPlantLevel();
         int curr_valve = getCurrValveLevel();
-        datadraw(data, curr_time - start_time, curr_plant, curr_valve, 0);
+        datadraw(data, curr_time_s - start_time_s, curr_plant, curr_valve, 0);
 
         usleep(50000);
     }
