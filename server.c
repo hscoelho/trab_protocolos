@@ -31,6 +31,13 @@ struct Command
     int value;
 };
 
+struct Command command =
+{
+    .cmd_id = Unknown;
+    .seq = 0;
+    .value = 0;
+};
+
 struct Tank
 {
     double level;
@@ -40,12 +47,14 @@ struct Tank
     double time;
 };
 
-struct Tank tank = {
+struct Tank tank =
+{
     .level = 0.4,
     .max_flux = 100,
     .in_angle = 50,
     .out_angle = 0,
-    .time = 0};
+    .time = 0
+};
 
 int g_serversock, g_clientsock;
 struct sockaddr_in g_server_addr, g_client_addr;
@@ -118,7 +127,7 @@ void *plantThreadFunction()
             break;
 
         case SetMax:
-            delta += cmd.value;
+            tank.max_flux = cmd.value;
             break;
 
         default:
@@ -184,6 +193,10 @@ void *plantThreadFunction()
 
         printf("loop time: %ld", loop_time);
         printf("sleep time: %ld", sleep_time);
+
+        printf("cmd: %d", command.cmd_id);
+        command.cmd_id = Unknown;
+        printf("cmd: %d", command.cmd_id);
 
         // mudar para clock_nanosleep() posteriormente
         usleep(fmax(sleep_time, 0));
@@ -264,6 +277,7 @@ void *connectionThreadFunction()
 
         if (!findSeq(cmd.seq, seq_buf, seq_buff_size))
         {
+            command = cmd;
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
     }
@@ -391,7 +405,7 @@ bool findSeq(int cmd_seq, int *seq_buf, int buf_size)
     return false;
 }
 
-void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
+handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
 {
     char ack_msg[MAX_CMD_SIZE];
     snprintf(ack_msg, sizeof(ack_msg), "");
