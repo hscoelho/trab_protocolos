@@ -112,7 +112,7 @@ int getAck(char *expected_msg)
 void *controlThreadFunction()
 {
     int i = 0;
-    bool isValveOpen = false;
+    bool is_valve_open = false;
     while (1)
     {
         int plant_level = setCurrPlantLevel(getServerPlantLevel());
@@ -121,23 +121,31 @@ void *controlThreadFunction()
 
         char cmd[MAX_CMD_SIZE];
         char ack[MAX_CMD_SIZE];
-        if (plant_level < 80 && !isValveOpen)
+        bool send_cmd = false;
+        if (plant_level < 80 && !is_valve_open)
         {
+            is_valve_open = true;
+            send_cmd = true;
             snprintf(cmd, sizeof(cmd), "OpenValve#%d#%d!", seq, VALVE_OPENING);
             snprintf(ack, sizeof(ack), "Open#%d!", seq);
             setCurrValveLevel(VALVE_OPENING);
         }
-        else if (plant_level > 80 && isValveOpen)
+        else if (plant_level > 80 && is_valve_open)
         {
+            is_valve_open = false;
+            send_cmd = true;
             snprintf(cmd, sizeof(cmd), "CloseValve#%d#%d!", seq, VALVE_OPENING);
             snprintf(ack, sizeof(ack), "Close#%d!", seq);
             setCurrValveLevel(0);
         }
 
-        sendMsg(cmd, sizeof(cmd));
-        if (getAck(ack) < 0)
+        if (send_cmd)
         {
-            printf("Received wrong ack!");
+            sendMsg(cmd, sizeof(cmd));
+            if (getAck(ack) < 0)
+            {
+                printf("Received wrong ack!");
+            }
         }
 
         // usleep(25000);

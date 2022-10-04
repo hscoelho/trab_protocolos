@@ -117,9 +117,7 @@ void *plantThreadFunction()
     {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
-        // if (cmd != NULL)          // TODO: verificar se tem comando pra usar
-        //{
-        switch (command.cmd_id) // talvez mudar para cmd_id = Unknown quando cmd for usado
+        switch (command.cmd_id)
         {
         case OpenValve:
             delta += command.value;
@@ -136,11 +134,7 @@ void *plantThreadFunction()
         default:
             break;
         }
-        //}
 
-        // printf("cmd: %d", cmd.cmd_id);
-        // printf("delta: %f", delta);
-        // printf("in_angle: %f", tank.in_angle);
         printf("DELTA: %.2f | ", delta);
 
         if (delta > 0)
@@ -181,28 +175,11 @@ void *plantThreadFunction()
 
         tank.time += dT;
 
-        // printf("delta: %f", delta);
-        // printf("level: %f", tank.level);
-
-        // printf("in_angle: %f", tank.in_angle);
-        // printf("out_angle: %f", tank.out_angle);
-
-        // printf("in_flux: %f", in_flux);
-        // printf("out_flux: %f", out_flux);
-
-        // printf("start time: %ld", start_time.tv_nsec);
-        // printf("end time: %ld", end_time.tv_nsec);
-
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
         loop_time = (end_time.tv_nsec - start_time.tv_nsec) / 1000;
         sleep_time = dT * 1000 - loop_time;
 
-        // printf("loop time: %ld", loop_time);
-        // printf("sleep time: %ld", sleep_time);
-
-        // printf("cmd: %d", command.cmd_id);
         command.cmd_id = Unknown;
-        // printf("cmd: %d", command.cmd_id);
 
         // mudar para clock_nanosleep() posteriormente
         usleep(fmax(sleep_time, 0));
