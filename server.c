@@ -85,7 +85,7 @@ int main()
     pthread_t plant_thread;
     pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
     pthread_t graph_thread;
-    //pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
+    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
 
     if (initConnection() < 0)
     {
@@ -97,7 +97,7 @@ int main()
 
     pthread_join(connection_thread, NULL);
     pthread_join(plant_thread, NULL);
-    //pthread_join(graph_thread, NULL);
+    pthread_join(graph_thread, NULL);
 
     return 0;
 }
@@ -218,7 +218,6 @@ double tankOutAngle(double T)
     {
         return 100;
     }
-    
 }
 
 int initConnection()
