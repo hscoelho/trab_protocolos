@@ -124,7 +124,7 @@ void *plantThreadFunction()
             break;
 
         case CloseValve:
-            delta += command.value;
+            delta -= command.value;
             break;
 
         case SetMax:
@@ -154,7 +154,7 @@ void *plantThreadFunction()
         {
             if (delta > -0.01 * dT)
             {
-                tank.in_angle clamp(tank.in_angle + delta, 0, 100);
+                tank.in_angle = clamp(tank.in_angle + delta, 0, 100);
                 delta = 0;
             }
             else
@@ -405,7 +405,7 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
         break;
 
     case GetLevel:
-        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", round(tank.level * 100));
+        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", (int)round(tank.level * 100.0));
         break;
 
     case CommTest:
