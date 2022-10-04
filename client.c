@@ -51,13 +51,13 @@ int main()
     srand(time(NULL));
 
     pthread_t control_thread;
-    // pthread_t graph_thread;
+    pthread_t graph_thread;
 
     pthread_create(&control_thread, NULL, controlThreadFunction, NULL);
-    // pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
+    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
 
     pthread_join(control_thread, NULL);
-    // pthread_join(graph_thread, NULL);
+    pthread_join(graph_thread, NULL);
 
     return 0;
 }
@@ -237,12 +237,13 @@ void *graphThreadFunction()
     while (true)
     {
         struct timespec curr_time;
-        clock_gettime(CLOCK_REALTIME, &time);
+        clock_gettime(CLOCK_REALTIME, &curr_time);
         time_t curr_time_s = curr_time.tv_sec;
         int curr_plant = getCurrPlantLevel();
         int curr_valve = getCurrValveLevel();
         datadraw(data, curr_time_s - start_time_s, curr_plant, curr_valve, 0);
 
-        usleep(50000);
+        quitevent();
+        sleep(1);
     }
 }
