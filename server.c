@@ -137,7 +137,7 @@ void *plantThreadFunction()
         printf("cmd: %d", cmd.cmd_id);
         printf("delta: %f", delta);
         printf("in_angle: %f", tank.in_angle);
-        
+
         if (delta > 0)
         {
             if (delta < 0.01 * dT)
@@ -173,10 +173,10 @@ void *plantThreadFunction()
         tank.level += 0.00002 * dT * (in_flux - out_flux);
 
         tank.time += dT;
-        
+
         printf("delta: %f", delta);
         printf("level: %f", tank.level);
-        
+
         printf("in_angle: %f", tank.in_angle);
         printf("out_angle: %f", tank.out_angle);
 
@@ -415,7 +415,7 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
         break;
 
     case GetLevel:
-        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", 50); // TODO: adicionar o getPlantLevel aqui
+        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", tank.level);
         break;
 
     case CommTest:
@@ -436,7 +436,6 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
     }
 
     sendMsg(ack_msg, sizeof(ack_msg));
-    // TODO: UPDATEPLANTVARS();
 }
 
 int sendMsg(char *msg, int msg_size)
@@ -469,7 +468,7 @@ void *graphThreadFunction()
 {
     Tdataholder *data;
 
-    data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
+    data = datainit(SCREEN_W, SCREEN_H, 300, 110, tank.level, tank.in_angle, tank.out_angle);
 
     struct timespec start_time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
@@ -480,7 +479,7 @@ void *graphThreadFunction()
         struct timespec curr_time;
         clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
         time_t curr_time_s = curr_time.tv_sec;
-        datadraw(data, curr_time_s - start_time_s, 0, 0, 0);
+        datadraw(data, curr_time_s - start_time_s, tank.level, tank.in_angle, tank.out_angle);
 
         quitevent();
         sleep(1);
