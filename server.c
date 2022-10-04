@@ -46,6 +46,7 @@ struct Tank tank = {
     .in_angle = 50,
     .out_angle = 0,
     .time = 0};
+
 int g_serversock, g_clientsock;
 struct sockaddr_in g_server_addr, g_client_addr;
 
@@ -92,7 +93,6 @@ void *plantThreadFunction()
     struct timespec end_time;
     long loop_time;
     long sleep_time;
-    long T = 0;
     int dT = 10;
 
     // TODO: tornar global
@@ -160,11 +160,18 @@ void *plantThreadFunction()
                    sin(M_PI / 2 * tank.out_angle / 100);
         tank.level += 0.00002 * dT * (in_flux - out_flux);
 
-        T += dT;
+        tank.time += dT;
+
+        printf("start time: %f", start_time);
+        printf("end time: %f", end_time);
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
         loop_time = (end_time.tv_nsec - start_time.tv_nsec) / 1000;
         sleep_time = dT * 1000 - loop_time;
+
+        printf("loop time: %f", loop_time);
+        printf("sleep time: %f", sleep_time);
+
         // mudar para clock_nanosleep() posteriormente
         usleep(sleep_time);
     }
@@ -216,35 +223,8 @@ int initConnection()
         return -1;
     }
     printf("Socket bound!\n");
-
-    /* Prepare the server for incoming client requests
-
-        The listen() function applies only to stream sockets. It indicates a readiness to accept
-        client connection requests, and creates a connection request queue of length backlog to
-        queue incoming connection requests. Once full, additional connection requests are rejected.
-
-        int listen(int socket, int backlog);
-
-        socket
-            The socket descriptor.
-        backlog
-            Defines the maximum length for the queue of pending connections.
-        return
-            If successful, listen() returns 0. If unsuccessful, listen() returns -1 and sets errno
-            to one of the following values: EBADF, EDESTADDRREQ, EINVAL, ENOBUFS, ENOTSOCK and
-            EOPNOTSUPP.
-
-    */
     listen(g_serversock, 5);
     int sock_len = sizeof(g_client_addr);
-    /* Accept a new connection on a socket
-
-        int accept(int socket, struct sockaddr *restrict address, socklen_t *restrict address_len);
-
-        The accept() function shall extract the first connection on the queue of pending
-        connections, create a new socket with the same socket type protocol and address family as
-        the specified socket, and allocate a new file descriptor for that socket.
-
     g_clientsock = accept(g_serversock, (struct sockaddr *)&g_client_addr, &sock_len);
     if (g_clientsock < 0)
     {
