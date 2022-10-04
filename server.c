@@ -78,21 +78,22 @@ void testDecode();
 void *graphThreadFunction();
 
 float clamp(float value, float min, float max);
+double tankOutAngle(double T);
 
 int main()
 {
+    pthread_t plant_thread;
+    pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
+    pthread_t graph_thread;
+    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
+
     if (initConnection() < 0)
     {
         return -1;
     }
 
     pthread_t connection_thread;
-    pthread_t plant_thread;
-    pthread_t graph_thread;
-
     pthread_create(&connection_thread, NULL, connectionThreadFunction, NULL);
-    pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
-    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
 
     pthread_join(connection_thread, NULL);
     pthread_join(plant_thread, NULL);
@@ -187,7 +188,7 @@ void *plantThreadFunction()
     }
 }
 
-int tankOutAngle(int T)
+double tankOutAngle(double T)
 {
     if (T <= 0)
     {
@@ -265,6 +266,7 @@ void *connectionThreadFunction()
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
     }
+    usleep(100000);
 }
 
 int readMsg(char *msg, int msg_size)
@@ -472,7 +474,7 @@ void *graphThreadFunction()
         datadraw(data, curr_time_s - start_time_s, tank.level, tank.in_angle, tank.out_angle);
 
         quitevent();
-        sleep(1);
+        usleep(50000);
     }
 }
 

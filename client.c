@@ -160,7 +160,6 @@ void *controlThreadFunction()
             }
         }
 
-        // usleep(25000);
         sleep(1);
     }
 }
@@ -264,6 +263,6 @@ void *graphThreadFunction()
         datadraw(data, curr_time_s - start_time_s, curr_plant, curr_valve, 0);
 
         quitevent();
-        sleep(1);
+        usleep(50000);
     }
 }
