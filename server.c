@@ -126,6 +126,10 @@ void *plantThreadFunction()
         }
         //}
 
+        printf("cmd: %d", cmd.cmd_id);
+        printf("delta: %f", delta);
+        printf("in_angle: %f", tank.in_angle);
+        
         if (delta > 0)
         {
             if (delta < 0.01 * dT)
@@ -161,19 +165,28 @@ void *plantThreadFunction()
         tank.level += 0.00002 * dT * (in_flux - out_flux);
 
         tank.time += dT;
+        
+        printf("delta: %f", delta);
+        printf("level: %f", tank.level);
+        
+        printf("in_angle: %f", tank.in_angle);
+        printf("out_angle: %f", tank.out_angle);
 
-        printf("start time: %f", start_time);
-        printf("end time: %f", end_time);
+        printf("in_flux: %f", in_flux);
+        printf("out_flux: %f", out_flux);
+
+        printf("start time: %ld", start_time.tv_nsec);
+        printf("end time: %ld", end_time.tv_nsec);
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
         loop_time = (end_time.tv_nsec - start_time.tv_nsec) / 1000;
         sleep_time = dT * 1000 - loop_time;
 
-        printf("loop time: %f", loop_time);
-        printf("sleep time: %f", sleep_time);
+        printf("loop time: %ld", loop_time);
+        printf("sleep time: %ld", sleep_time);
 
         // mudar para clock_nanosleep() posteriormente
-        usleep(sleep_time);
+        usleep(fmax(sleep_time, 0));
     }
 }
 
