@@ -37,7 +37,15 @@ struct Tank
     double max_flux;
     double in_angle;
     double out_angle;
+    double time;
 };
+
+struct Tank tank = {
+    .level = 0.4,
+    .max_flux = 100,
+    .in_angle = 50,
+    .out_angle = 0,
+    .time = 0};
 
 /*
     Sobre o buffer de comandos:
@@ -67,15 +75,6 @@ void readMsg(char *msg, int msg_size);
 struct Command decodeCmd(char *message, int message_size);
 void sendAck(struct Command cmd);
 bool hasReceived(int cmd_seq);
-
-char *proccessCmd(struct Command cmd);
-char *openValve(int value, int seq);
-char *closeValve(int value, int seq);
-char *getLevel();
-char *commTest();
-char *setMax(int value);
-char *start();
-
 void testDecode();
 
 int main()
@@ -150,15 +149,14 @@ void *plantThreadFunction()
     float in_flux = 0;
     float out_flux = 0;
 
-    int T = 0; // TODO: contar tempo
+    struct timespec start_time;
+    struct timespec end_time;
+    long loop_time;
+    long sleep_time;
+    long T = 0;
     int dT = 10;
 
-    struct Tank tank = {
-        .level = 0.4,
-        .max_flux = 100,
-        .in_angle = 50,
-        .out_angle = 0};
-
+    // TODO: tornar global
     struct Command cmd = {
         .cmd_id = Unknown,
         .seq = 0,
@@ -166,6 +164,8 @@ void *plantThreadFunction()
 
     while (1)
     {
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+        
         // if (cmd != NULL)          // TODO: verificar se tem comando pra usar
         //{
         switch (cmd.cmd_id) // talvez mudar para cmd_id = Unknown quando cmd for usado
@@ -202,7 +202,7 @@ void *plantThreadFunction()
         }
         else
         {
-            if (delta > -0.01 & dT)
+            if (delta > -0.01 * dT)
             {
                 tank.in_angle += delta;
                 delta = 0;
@@ -220,6 +220,14 @@ void *plantThreadFunction()
         out_flux = (tank.max_flux / 100) * (tank.level / 1.25 + 0.2) *
                    sin(M_PI / 2 * tank.out_angle / 100);
         tank.level += 0.00002 * dT * (in_flux - out_flux);
+
+        T += dT;
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        loop_time = (end_time.tv_nsec - start_time.tv_nsec) / 1000;
+        sleep_time = dT * 1000 - loop_time;
+        // mudar para clock_nanosleep() posteriormente
+        usleep(sleep_time);
     }
 }
 
@@ -560,70 +568,6 @@ void sendAck(struct Command cmd)
         printf("Unable to send message\n");
         return;
     }
-}
-
-char *proccessCmd(struct Command cmd)
-{
-    // TODO: implementar
-    switch (cmd.cmd_id)
-    {
-    case OpenValve:
-        return openValve(cmd.value, cmd.seq);
-
-    case CloseValve:
-        return closeValve(cmd.value, cmd.seq);
-
-    case GetLevel:
-        return getLevel();
-
-    case CommTest:
-        return commTest();
-
-    case SetMax:
-        return setMax(cmd.value);
-
-    case Start:
-        return start();
-
-    default:
-        return "Err!";
-    }
-}
-
-char *openValve(int value, int seq)
-{
-    // TODO: implementar
-    return "Open#<seq>!";
-}
-
-char *closeValve(int value, int seq)
-{
-    // TODO: implementar
-    return "Close#<seq>!";
-}
-
-char *getLevel()
-{
-    // TODO: implementar
-    return "Level#<seq>!";
-}
-
-char *commTest()
-{
-    // TODO: implementar
-    return "Comm#OK!";
-}
-
-char *setMax(int value)
-{
-    // TODO: implementar
-    return "Max#<value>!";
-}
-
-char *start()
-{
-    // TODO: implementar
-    return "Start#OK!";
 }
 
 void testDecode()
