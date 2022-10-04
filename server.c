@@ -171,7 +171,8 @@ void *plantThreadFunction()
                    sin(M_PI / 2 * tank.out_angle / 100);
         tank.level += 0.00002 * dT * (in_flux - out_flux);
         tank.level = clamp(tank.level + 0.00002 * dT * (in_flux - out_flux), 0, 1);
-        printf("TANK LEVEL: %.2f | TANK IN: %.2f | TANK OUT: %.2f\n", tank.level, tank.in_angle, tank.out_angle);
+        printf("TANK TIME: %.2f | TANK LEVEL: %.2f | TANK IN: %.2f | TANK OUT: %.2f\n",
+               tank.time, tank.level, tank.in_angle, tank.out_angle);
 
         tank.time += dT;
 

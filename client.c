@@ -13,7 +13,7 @@
 #define MAX_CMD_SIZE 100
 #define PORT 9000
 #define TARGET_LEVEL 80
-#define VALVE_OPENING 80
+#define VALVE_OPENING 100
 
 int g_sock;
 struct sockaddr_in g_server_addr;
@@ -95,6 +95,18 @@ int initPlantComm()
     sendMsg("Start!", sizeof("Start!"));
     if (getAck("Start#OK!"))
         return -1;
+
+    int seq = rand() % 10000;
+    char cmd[MAX_CMD_SIZE];
+    char ack[MAX_CMD_SIZE];
+    snprintf(cmd, sizeof(cmd), "CloseValve#%d#%d!", seq, 100);
+    snprintf(ack, sizeof(ack), "Close#%d!", seq);
+    setCurrValveLevel(0);
+    sendMsg(cmd, sizeof(cmd));
+    if (getAck(ack) < 0)
+    {
+        printf("Received wrong ack!");
+    }
 }
 
 int getAck(char *expected_msg)
