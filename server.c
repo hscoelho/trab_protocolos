@@ -6,6 +6,9 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <math.h>
+#include <time.h>
+#include <unistd.h>
+#include "graphing.h"
 
 #define SEQ_BUF_SIZE 100
 #define MAX_CMD_SIZE 100
@@ -73,6 +76,8 @@ int sendMsg(char *msg, int msg_size);
 
 void testDecode();
 
+void *graphThreadFunction();
+
 int main()
 {
     if (initConnection() < 0)
@@ -82,12 +87,15 @@ int main()
 
     pthread_t connection_thread;
     pthread_t plant_thread;
+    pthread_t graph_thread;
 
     pthread_create(&connection_thread, NULL, connectionThreadFunction, NULL);
     pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
+    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
 
     pthread_join(connection_thread, NULL);
     pthread_join(plant_thread, NULL);
+    pthread_join(graph_thread, NULL);
 
     return 0;
 }
@@ -113,7 +121,7 @@ void *plantThreadFunction()
     while (1)
     {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
-        
+
         // if (cmd != NULL)          // TODO: verificar se tem comando pra usar
         //{
         switch (cmd.cmd_id) // talvez mudar para cmd_id = Unknown quando cmd for usado
@@ -469,4 +477,26 @@ void testDecode()
     printf("CMD STRUCT: id: %d, seq: %d, val: %d\n", cmd.cmd_id, cmd.seq, cmd.value);
     cmd = decodeCmd("SetMax#99!", sizeof("SetMax#99!"));
     printf("CMD STRUCT: id: %d, seq: %d, val: %d", cmd.cmd_id, cmd.seq, cmd.value);
+}
+
+void *graphThreadFunction()
+{
+    Tdataholder *data;
+
+    data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
+
+    struct timespec start_time;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+    time_t start_time_s = start_time.tv_sec;
+
+    while (true)
+    {
+        struct timespec curr_time;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
+        time_t curr_time_s = curr_time.tv_sec;
+        datadraw(data, curr_time_s - start_time_s, 0, 0, 0);
+
+        quitevent();
+        sleep(1);
+    }
 }
