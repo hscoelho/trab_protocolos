@@ -141,12 +141,12 @@ void *plantThreadFunction()
         {
             if (delta < 0.01 * dT)
             {
-                tank.in_angle += delta;
+                tank.in_angle = clamp(tank.in_angle + delta, 0, 100);
                 delta = 0;
             }
             else
             {
-                tank.in_angle += 0.01 * dT;
+                tank.in_angle = clamp(tank.in_angle + 0.01 * dT, 0, 100);
                 delta -= 0.01 * dT;
             }
         }
@@ -154,12 +154,12 @@ void *plantThreadFunction()
         {
             if (delta > -0.01 * dT)
             {
-                tank.in_angle += delta;
+                tank.in_angle clamp(tank.in_angle + delta, 0, 100);
                 delta = 0;
             }
             else
             {
-                tank.in_angle -= 0.01 * dT;
+                tank.in_angle = clamp(tank.in_angle - 0.01 * dT, 0, 100);
                 delta += 0.01 * dT;
             }
         }
