@@ -35,10 +35,10 @@ struct Command
 };
 
 struct Command command =
-{
-    .cmd_id = Unknown;
-    .seq = 0;
-    .value = 0;
+    {
+        .cmd_id = Unknown,
+        .seq = 0,
+        .value = 0,
 };
 
 struct Tank
@@ -51,13 +51,12 @@ struct Tank
 };
 
 struct Tank tank =
-{
-    .level = 0.4,
-    .max_flux = 100,
-    .in_angle = 50,
-    .out_angle = 0,
-    .time = 0
-};
+    {
+        .level = 0.4,
+        .max_flux = 100,
+        .in_angle = 50,
+        .out_angle = 0,
+        .time = 0};
 
 int g_serversock, g_clientsock;
 struct sockaddr_in g_server_addr, g_client_addr;
@@ -77,6 +76,8 @@ int sendMsg(char *msg, int msg_size);
 void testDecode();
 
 void *graphThreadFunction();
+
+float clamp(float value, float min, float max);
 
 int main()
 {
@@ -112,30 +113,24 @@ void *plantThreadFunction()
     long sleep_time;
     int dT = 10;
 
-    // TODO: tornar global
-    struct Command cmd = {
-        .cmd_id = Unknown,
-        .seq = 0,
-        .value = 0};
-
     while (1)
     {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
         // if (cmd != NULL)          // TODO: verificar se tem comando pra usar
         //{
-        switch (cmd.cmd_id) // talvez mudar para cmd_id = Unknown quando cmd for usado
+        switch (command.cmd_id) // talvez mudar para cmd_id = Unknown quando cmd for usado
         {
         case OpenValve:
-            delta += cmd.value;
+            delta += command.value;
             break;
 
         case CloseValve:
-            delta += cmd.value;
+            delta += command.value;
             break;
 
         case SetMax:
-            tank.max_flux = cmd.value;
+            tank.max_flux = command.value;
             break;
 
         default:
@@ -143,9 +138,10 @@ void *plantThreadFunction()
         }
         //}
 
-        printf("cmd: %d", cmd.cmd_id);
-        printf("delta: %f", delta);
-        printf("in_angle: %f", tank.in_angle);
+        // printf("cmd: %d", cmd.cmd_id);
+        // printf("delta: %f", delta);
+        // printf("in_angle: %f", tank.in_angle);
+        printf("DELTA: %.2f | ", delta);
 
         if (delta > 0)
         {
@@ -180,31 +176,33 @@ void *plantThreadFunction()
         out_flux = (tank.max_flux / 100) * (tank.level / 1.25 + 0.2) *
                    sin(M_PI / 2 * tank.out_angle / 100);
         tank.level += 0.00002 * dT * (in_flux - out_flux);
+        tank.level = clamp(tank.level + 0.00002 * dT * (in_flux - out_flux), 0, 1);
+        printf("TANK LEVEL: %.2f | TANK IN: %.2f | TANK OUT: %.2f\n", tank.level, tank.in_angle, tank.out_angle);
 
         tank.time += dT;
 
-        printf("delta: %f", delta);
-        printf("level: %f", tank.level);
+        // printf("delta: %f", delta);
+        // printf("level: %f", tank.level);
 
-        printf("in_angle: %f", tank.in_angle);
-        printf("out_angle: %f", tank.out_angle);
+        // printf("in_angle: %f", tank.in_angle);
+        // printf("out_angle: %f", tank.out_angle);
 
-        printf("in_flux: %f", in_flux);
-        printf("out_flux: %f", out_flux);
+        // printf("in_flux: %f", in_flux);
+        // printf("out_flux: %f", out_flux);
 
-        printf("start time: %ld", start_time.tv_nsec);
-        printf("end time: %ld", end_time.tv_nsec);
+        // printf("start time: %ld", start_time.tv_nsec);
+        // printf("end time: %ld", end_time.tv_nsec);
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
         loop_time = (end_time.tv_nsec - start_time.tv_nsec) / 1000;
         sleep_time = dT * 1000 - loop_time;
 
-        printf("loop time: %ld", loop_time);
-        printf("sleep time: %ld", sleep_time);
+        // printf("loop time: %ld", loop_time);
+        // printf("sleep time: %ld", sleep_time);
 
-        printf("cmd: %d", command.cmd_id);
+        // printf("cmd: %d", command.cmd_id);
         command.cmd_id = Unknown;
-        printf("cmd: %d", command.cmd_id);
+        // printf("cmd: %d", command.cmd_id);
 
         // mudar para clock_nanosleep() posteriormente
         usleep(fmax(sleep_time, 0));
@@ -413,7 +411,7 @@ bool findSeq(int cmd_seq, int *seq_buf, int buf_size)
     return false;
 }
 
-handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
+void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
 {
     char ack_msg[MAX_CMD_SIZE];
     snprintf(ack_msg, sizeof(ack_msg), "");
@@ -429,7 +427,7 @@ handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
         break;
 
     case GetLevel:
-        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", tank.level);
+        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", round(tank.level * 100));
         break;
 
     case CommTest:
@@ -498,4 +496,18 @@ void *graphThreadFunction()
         quitevent();
         sleep(1);
     }
+}
+
+float clamp(float value, float min, float max)
+{
+    if (value >= max)
+    {
+        return max;
+    }
+    else if (value <= min)
+    {
+        return min;
+    }
+
+    return value;
 }

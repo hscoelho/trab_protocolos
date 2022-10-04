@@ -12,7 +12,8 @@
 
 #define MAX_CMD_SIZE 100
 #define PORT 9000
-#define TARGET_LEVEL
+#define TARGET_LEVEL 80
+#define VALVE_OPENING 80
 
 int g_sock;
 struct sockaddr_in g_server_addr;
@@ -122,13 +123,13 @@ void *controlThreadFunction()
         char ack[MAX_CMD_SIZE];
         if (plant_level < 80 && !isValveOpen)
         {
-            snprintf(cmd, sizeof(cmd), "OpenValve#%d#50!", seq);
+            snprintf(cmd, sizeof(cmd), "OpenValve#%d#%d!", seq, VALVE_OPENING);
             snprintf(ack, sizeof(ack), "Open#%d!", seq);
-            setCurrValveLevel(50);
+            setCurrValveLevel(VALVE_OPENING);
         }
         else if (plant_level > 80 && isValveOpen)
         {
-            snprintf(cmd, sizeof(cmd), "CloseValve#%d#50!", seq);
+            snprintf(cmd, sizeof(cmd), "CloseValve#%d#%d!", seq, VALVE_OPENING);
             snprintf(ack, sizeof(ack), "Close#%d!", seq);
             setCurrValveLevel(0);
         }
