@@ -75,9 +75,8 @@ int initConnection()
     g_server_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); /* IP address */
     g_server_addr.sin_port = htons(PORT);                   /* server port */
 
-    if (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
+    while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
     {
-        return -1;
     }
     printf("Connection established!\n");
 }
@@ -231,13 +230,13 @@ void *graphThreadFunction()
     data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
 
     struct timespec start_time;
-    clock_gettime(CLOCK_REALTIME, &start_time);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
     time_t start_time_s = start_time.tv_sec;
 
     while (true)
     {
         struct timespec curr_time;
-        clock_gettime(CLOCK_REALTIME, &curr_time);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
         time_t curr_time_s = curr_time.tv_sec;
         int curr_plant = getCurrPlantLevel();
         int curr_valve = getCurrValveLevel();
