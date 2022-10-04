@@ -153,7 +153,7 @@ void *plantThreadFunction()
             }
         }
 
-        tank.out_angle = tankOutAngle(T);
+        tank.out_angle = tankOutAngle(tank.time);
 
         in_flux = sin(M_PI / 2 * tank.in_angle / 100);
         out_flux = (tank.max_flux / 100) * (tank.level / 1.25 + 0.2) *
