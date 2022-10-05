@@ -82,14 +82,16 @@ void *graphThreadFunction();
 
 float clamp(float value, float min, float max);
 double tankOutAngle(double T);
+void delayMsec(int msec);
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "USAGE: %s <port>\n", argv[0]);
         exit(1);
     }
-    
+
     if (initConnection() < 0)
     {
         return -1;
@@ -117,13 +119,12 @@ void *plantThreadFunction()
 
     struct timespec start_time;
     struct timespec end_time;
-    struct timespec sleep_time;
     long loop_time;
-    int dT = 1000;
+    int dT = 10;
 
     while (1)
     {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+        // clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
         switch (command.cmd_id)
         {
@@ -142,8 +143,6 @@ void *plantThreadFunction()
         default:
             break;
         }
-
-        printf("DELTA: %.2f | ", delta);
 
         if (delta > 0)
         {
@@ -179,34 +178,29 @@ void *plantThreadFunction()
                    sin(M_PI / 2 * tank.out_angle / 100);
         tank.level += 0.00002 * dT * (in_flux - out_flux);
         tank.level = clamp(tank.level + 0.00002 * dT * (in_flux - out_flux), 0, 1);
-        printf("TANK TIME: %.2f | TANK LEVEL: %.2f | TANK IN: %.2f | TANK OUT: %.2f\n",
-               tank.time, tank.level, tank.in_angle, tank.out_angle);
 
         tank.time += dT;
 
         command.cmd_id = Unknown;
 
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
-        //sleep_time.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
-        //clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
-        printf(" %ld\n", dT * 1000000);
-        printf(" %ld\n", start_time.tv_nsec);
-        printf(" %ld\n", end_time.tv_nsec);
-        printf(" %ld\n", sleep_time.tv_nsec);
-        //sleep(1);
-        delayMs(&start_time, &end_time, &sleep_time, dT);
+        // clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+
+        // struct timespec diff = { .tv_sec = end_time.tv_sec - start_time.tv_sec,
+        //     .tv_nsec = end_time.tv_nsec - start_time.tv_nsec };
+
+        delayMsec(10);
     }
 }
 
-void delayMs(struct timespec *start_time, struct timespec *end_time, struct timespec *sleep_time, long delay_ms)
+void delayMsec(int msec)
 {
-    sleep_time.tv_nsec = delay_ms * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
-    
-        printf(" %ld\n", delay_ms * 1000000);
-        printf(" %ld\n", start_time.tv_nsec);
-        printf(" %ld\n", end_time.tv_nsec);
-        printf(" %ld\n", sleep_time.tv_nsec);
-    
+    struct timespec sleep_time = {0};
+    if (msec >= 1000)
+    {
+        sleep_time.tv_sec = msec / 1000;
+        msec = msec % 1000;
+    }
+    sleep_time.tv_nsec = msec * 1000000;
     clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
 }
 
@@ -290,7 +284,7 @@ void *connectionThreadFunction()
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
 
-        usleep(1000);
+        delayMsec(50);
     }
 }
 
@@ -517,7 +511,7 @@ void *graphThreadFunction()
         datadraw(data, curr_time_s - start_time_s, tank.level, tank.in_angle, tank.out_angle);
 
         quitevent();
-        usleep(50000);
+        delayMsec(50);
     }
 }
 

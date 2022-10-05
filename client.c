@@ -42,6 +42,7 @@ int getServerPlantLevel();
 int decodePlantLevel(char *msg);
 
 void *graphThreadFunction();
+void delayMsec(int msec);
 
 int main()
 {
@@ -167,7 +168,7 @@ void *controlThreadFunction()
             }
         }
 
-        usleep(500000);
+        delayMsec(500);
     }
 }
 
@@ -275,6 +276,18 @@ void *graphThreadFunction()
         datadraw(data, curr_time_s - start_time_s, curr_plant, curr_valve, 0);
 
         quitevent();
-        usleep(50000);
+        delayMsec(50);
     }
+}
+
+void delayMsec(int msec)
+{
+    struct timespec sleep_time = {0};
+    if (msec >= 1000)
+    {
+        sleep_time.tv_sec = msec / 1000;
+        msec = msec % 1000;
+    }
+    sleep_time.tv_nsec = msec * 1000000;
+    clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
 }
