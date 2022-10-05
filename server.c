@@ -110,10 +110,10 @@ void *plantThreadFunction()
     float in_flux = 0;
     float out_flux = 0;
 
+    struct timespec sleep_time;
     struct timespec start_time;
     struct timespec end_time;
     long loop_time;
-    long sleep_time;
     int dT = 10;
 
     while (1)
@@ -182,13 +182,8 @@ void *plantThreadFunction()
         command.cmd_id = Unknown;
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
-
-        struct timespec sleep_spec;
-        sleep_spec.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
-        sleep_spec.tv_nsec %= 1000000000;
-        sleep_spec.tv_sec = sleep_spec.tv_nsec / 1000000000;
-
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep, NULL);
+        sleep_time.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
+        clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
     }
 }
 
