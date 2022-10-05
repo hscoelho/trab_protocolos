@@ -13,8 +13,8 @@
 #define SEQ_BUF_SIZE 5000
 #define MAX_CMD_SIZE 100
 
-#define PORT 6100
-#define IP_ADDRESS "10.1.8.7"
+#define PORT 8000
+#define IP_ADDRESS "127.0.0.1"
 
 enum CommandId
 {
@@ -59,8 +59,10 @@ struct Tank tank =
         .out_angle = 0,
         .time = 0};
 
-int g_serversock, g_clientsock;
-struct sockaddr_in g_server_addr, g_client_addr;
+int g_socket;
+struct sockaddr_in g_server_addr;
+struct sockaddr_in g_client_addr;
+bool g_plant_started = false;
 
 int initConnection();
 
@@ -181,9 +183,10 @@ void *plantThreadFunction()
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
 
-        sleep.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
-        sleep.tv_nsec %= 1000000000;
-        sleep.tv_sec = sleep.tv_nsec / 1000000000;
+        struct timespec sleep_spec;
+        sleep_spec.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
+        sleep_spec.tv_nsec %= 1000000000;
+        sleep_spec.tv_sec = sleep_spec.tv_nsec / 1000000000;
 
         clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep, NULL);
     }
@@ -215,7 +218,7 @@ double tankOutAngle(double T)
     {
         return 40 + 20 * cos((T - 70000) * 2 * M_PI / 10000);
     }
-        else
+    else
     {
         return 100;
     }
@@ -223,32 +226,30 @@ double tankOutAngle(double T)
 
 int initConnection()
 {
-    if ((g_serversock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+    if ((g_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
         return -1;
     }
     printf("Socket created!\n");
 
-    memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
-    g_server_addr.sin_family = AF_INET;                     /* Internet/IP */
-    g_server_addr.sin_addr.s_addr = inet_addr(INADDR_ANY); /* Incoming addr */
-    g_server_addr.sin_port = htons(PORT);                   /* server port */
+    memset(&g_server_addr, 0, sizeof(g_server_addr));  /* Clear struct */
+    g_server_addr.sin_family = AF_INET;                /* Internet/IP */
+    g_server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* Incoming addr */
+    g_server_addr.sin_port = htons(PORT);              /* server port */
 
-    if (bind(g_serversock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
+    if (bind(g_socket, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
     {
         return -1;
     }
     printf("Socket bound!\n");
-    //listen(g_serversock, 5);
-    //int sock_len = sizeof(g_client_addr);
-    //g_clientsock = accept(g_serversock, (struct sockaddr *)&g_client_addr, &sock_len);
-    //if (g_clientsock < 0)
-    //{
-    //    printf("FAILED TO CONNECT! ERROR:%d\n", g_clientsock);
-    //    return -1;
-    //}
-    //printf("Client connected! IP:%s\n", inet_ntoa(g_client_addr.sin_addr));
 
+    while (!g_plant_started)
+    {
+        char client_message[MAX_CMD_SIZE];
+        readMsg(client_message, sizeof(client_message));
+        struct Command cmd = decodeCmd(client_message, sizeof(client_message));
+        handleCmd(cmd, NULL, 0);
+    }
     return 0;
 }
 
@@ -270,14 +271,16 @@ void *connectionThreadFunction()
             command = cmd;
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
-	
-	usleep(1000);
+
+        usleep(1000);
     }
 }
 
 int readMsg(char *msg, int msg_size)
 {
-    if (recv(g_serversock, msg, msg_size, 0) < 0)
+    int client_addr_len = sizeof(g_client_addr);
+    if (recvfrom(g_socket, msg, msg_size, 0, (struct sockaddr *)&g_client_addr, &client_addr_len) < 0)
+    // if (recv(g_socket, msg, msg_size, 0) < 0)
     {
         printf("[ERROR recvfrom] %s\n", strerror(errno));
         return -1;
@@ -404,16 +407,25 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
     switch (cmd.cmd_id)
     {
     case OpenValve:
-        seq_buf[(*seq_buf_size)++] = cmd.seq;
-        snprintf(ack_msg, sizeof(ack_msg), "Open#%d!", cmd.seq);
+        if (g_plant_started)
+        {
+            seq_buf[(*seq_buf_size)++] = cmd.seq;
+            snprintf(ack_msg, sizeof(ack_msg), "Open#%d!", cmd.seq);
+        }
         break;
     case CloseValve:
-        seq_buf[(*seq_buf_size)++] = cmd.seq;
-        snprintf(ack_msg, sizeof(ack_msg), "Close#%d!", cmd.seq);
+        if (g_plant_started)
+        {
+            seq_buf[(*seq_buf_size)++] = cmd.seq;
+            snprintf(ack_msg, sizeof(ack_msg), "Close#%d!", cmd.seq);
+        }
         break;
 
     case GetLevel:
-        snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", (int)round(tank.level * 100.0));
+        if (g_plant_started)
+        {
+            snprintf(ack_msg, sizeof(ack_msg), "Level#%d!", (int)round(tank.level * 100.0));
+        }
         break;
 
     case CommTest:
@@ -426,6 +438,7 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
 
     case Start:
         snprintf(ack_msg, sizeof(ack_msg), "Start#OK!");
+        g_plant_started = true;
         break;
 
     default:
@@ -438,7 +451,8 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
 
 int sendMsg(char *msg, int msg_size)
 {
-    if (sendto(g_clientsock, msg, msg_size, 0, &g_client_addr, sizeof(g_client_addr)) < 0)
+    if (sendto(g_socket, msg, msg_size, 0, (struct sockaddr *)&g_client_addr, sizeof(g_client_addr)) < 0)
+    // if (send(g_socket, msg, msg_size, 0) < 0)
     {
         printf("Unable to send message\n");
         return -1;

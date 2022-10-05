@@ -11,13 +11,14 @@
 #include "graphing.h"
 
 #define MAX_CMD_SIZE 100
-#define PORT 6100
-#define IP_ADDRESS "10.1.8.7"
+#define PORT 8000
+#define IP_ADDRESS "127.0.0.1"
 #define TARGET_LEVEL 80
 #define VALVE_OPENING 100
 
 int g_sock;
 struct sockaddr_in g_server_addr;
+struct sockaddr_in g_client_addr;
 
 int initConnection();
 
@@ -66,36 +67,39 @@ int main()
 
 int initConnection()
 {
-    if ((g_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+    if ((g_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
         return -1;
     }
     printf("Socket created!\n");
 
-    memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
-    g_server_addr.sin_family = AF_INET;                     /* Internet/IP */
+    memset(&g_server_addr, 0, sizeof(g_server_addr));      /* Clear struct */
+    g_server_addr.sin_family = AF_INET;                    /* Internet/IP */
     g_server_addr.sin_addr.s_addr = inet_addr(IP_ADDRESS); /* IP address */
-    g_server_addr.sin_port = htons(PORT);                   /* server port */
+    g_server_addr.sin_port = htons(PORT);                  /* server port */
 
-    //while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
+    // while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
     //{
-    //}
-    //printf("Connection established!\n");
+    // }
+    // printf("Connection established!\n");
 }
 
 int initPlantComm()
 {
     sendMsg("CommTest!", sizeof("CommTest!"));
-    if (getAck("Comm#OK!") < 0)
-        return -1;
+    while (getAck("Comm#OK!") < 0)
+    {
+    }
 
     sendMsg("SetMax#100!", sizeof("SetMax#100!"));
-    if (getAck("Max#100!") < 0)
-        return -1;
+    while (getAck("Max#100!") < 0)
+    {
+    }
 
     sendMsg("Start!", sizeof("Start!"));
-    if (getAck("Start#OK!"))
-        return -1;
+    while (getAck("Start#OK!"))
+    {
+    }
 
     int seq = rand() % 10000;
     char cmd[MAX_CMD_SIZE];
@@ -108,6 +112,7 @@ int initPlantComm()
     {
         printf("Received wrong ack!");
     }
+    sleep(1); // tempo para fechar a valvula
 }
 
 int getAck(char *expected_msg)
@@ -178,7 +183,8 @@ int sendMsg(char *msg, int msg_size)
 
 int receiveMsg(char *out_msg, int msg_size)
 {
-    if (recv(g_sock, out_msg, msg_size, 0) < 0)
+    int addr_len = sizeof(g_client_addr);
+    if (recvfrom(g_sock, out_msg, msg_size, 0, &g_client_addr, &addr_len) < 0)
     {
         printf("[ERROR] recv: %s", strerror(errno));
         return -1;
