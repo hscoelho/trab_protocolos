@@ -11,7 +11,8 @@
 #include "graphing.h"
 
 #define MAX_CMD_SIZE 100
-#define PORT 9000
+#define PORT 6100
+#define IP_ADDRESS "10.1.8.7"
 #define TARGET_LEVEL 80
 #define VALVE_OPENING 100
 
@@ -73,13 +74,13 @@ int initConnection()
 
     memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
     g_server_addr.sin_family = AF_INET;                     /* Internet/IP */
-    g_server_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); /* IP address */
+    g_server_addr.sin_addr.s_addr = inet_addr(IP_ADDRESS); /* IP address */
     g_server_addr.sin_port = htons(PORT);                   /* server port */
 
-    while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
-    {
-    }
-    printf("Connection established!\n");
+    //while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
+    //{
+    //}
+    //printf("Connection established!\n");
 }
 
 int initPlantComm()
@@ -160,7 +161,7 @@ void *controlThreadFunction()
             }
         }
 
-        sleep(1);
+        usleep(500000);
     }
 }
 

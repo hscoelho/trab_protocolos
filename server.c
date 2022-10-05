@@ -10,10 +10,11 @@
 #include <unistd.h>
 #include "graphing.h"
 
-#define SEQ_BUF_SIZE 100
+#define SEQ_BUF_SIZE 5000
 #define MAX_CMD_SIZE 100
 
-#define PORT 9000
+#define PORT 6100
+#define IP_ADDRESS "10.1.8.7"
 
 enum CommandId
 {
@@ -82,11 +83,6 @@ double tankOutAngle(double T);
 
 int main()
 {
-    pthread_t plant_thread;
-    pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
-    pthread_t graph_thread;
-    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
-
     if (initConnection() < 0)
     {
         return -1;
@@ -94,6 +90,10 @@ int main()
 
     pthread_t connection_thread;
     pthread_create(&connection_thread, NULL, connectionThreadFunction, NULL);
+    pthread_t plant_thread;
+    pthread_create(&plant_thread, NULL, plantThreadFunction, NULL);
+    pthread_t graph_thread;
+    pthread_create(&graph_thread, NULL, graphThreadFunction, NULL);
 
     pthread_join(connection_thread, NULL);
     pthread_join(plant_thread, NULL);
@@ -110,8 +110,9 @@ void *plantThreadFunction()
 
     struct timespec start_time;
     struct timespec end_time;
-    struct timespec sleep;
-    int dT = 1;
+    long loop_time;
+    long sleep_time;
+    int dT = 10;
 
     while (1)
     {
@@ -214,7 +215,7 @@ double tankOutAngle(double T)
     {
         return 40 + 20 * cos((T - 70000) * 2 * M_PI / 10000);
     }
-    else
+        else
     {
         return 100;
     }
@@ -230,7 +231,7 @@ int initConnection()
 
     memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
     g_server_addr.sin_family = AF_INET;                     /* Internet/IP */
-    g_server_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); /* Incoming addr */
+    g_server_addr.sin_addr.s_addr = inet_addr(INADDR_ANY); /* Incoming addr */
     g_server_addr.sin_port = htons(PORT);                   /* server port */
 
     if (bind(g_serversock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
@@ -238,15 +239,15 @@ int initConnection()
         return -1;
     }
     printf("Socket bound!\n");
-    listen(g_serversock, 5);
-    int sock_len = sizeof(g_client_addr);
-    g_clientsock = accept(g_serversock, (struct sockaddr *)&g_client_addr, &sock_len);
-    if (g_clientsock < 0)
-    {
-        printf("FAILED TO CONNECT! ERROR:%d\n", g_clientsock);
-        return -1;
-    }
-    printf("Client connected! IP:%s\n", inet_ntoa(g_client_addr.sin_addr));
+    //listen(g_serversock, 5);
+    //int sock_len = sizeof(g_client_addr);
+    //g_clientsock = accept(g_serversock, (struct sockaddr *)&g_client_addr, &sock_len);
+    //if (g_clientsock < 0)
+    //{
+    //    printf("FAILED TO CONNECT! ERROR:%d\n", g_clientsock);
+    //    return -1;
+    //}
+    //printf("Client connected! IP:%s\n", inet_ntoa(g_client_addr.sin_addr));
 
     return 0;
 }
@@ -269,13 +270,14 @@ void *connectionThreadFunction()
             command = cmd;
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
+	
+	usleep(1000);
     }
-    usleep(100000);
 }
 
 int readMsg(char *msg, int msg_size)
 {
-    if (recv(g_clientsock, msg, msg_size, 0) < 0)
+    if (recv(g_serversock, msg, msg_size, 0) < 0)
     {
         printf("[ERROR recvfrom] %s\n", strerror(errno));
         return -1;
