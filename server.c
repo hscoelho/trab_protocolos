@@ -83,8 +83,13 @@ void *graphThreadFunction();
 float clamp(float value, float min, float max);
 double tankOutAngle(double T);
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc != 2) {
+        fprintf(stderr, "USAGE: %s <port>\n", argv[0]);
+        exit(1);
+    }
+    
     if (initConnection() < 0)
     {
         return -1;
@@ -110,11 +115,11 @@ void *plantThreadFunction()
     float in_flux = 0;
     float out_flux = 0;
 
-    struct timespec sleep_time;
     struct timespec start_time;
     struct timespec end_time;
+    struct timespec sleep_time;
     long loop_time;
-    int dT = 10;
+    int dT = 1000;
 
     while (1)
     {
@@ -182,9 +187,27 @@ void *plantThreadFunction()
         command.cmd_id = Unknown;
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
-        sleep_time.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
+        //sleep_time.tv_nsec = dT * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
+        //clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
+        printf(" %ld\n", dT * 1000000);
+        printf(" %ld\n", start_time.tv_nsec);
+        printf(" %ld\n", end_time.tv_nsec);
+        printf(" %ld\n", sleep_time.tv_nsec);
+        //sleep(1);
+        delayMs(&start_time, &end_time, &sleep_time, dT);
     }
+}
+
+void delayMs(struct timespec *start_time, struct timespec *end_time, struct timespec *sleep_time, long delay_ms)
+{
+    sleep_time.tv_nsec = delay_ms * 1000000 - (end_time.tv_nsec - start_time.tv_nsec);
+    
+        printf(" %ld\n", delay_ms * 1000000);
+        printf(" %ld\n", start_time.tv_nsec);
+        printf(" %ld\n", end_time.tv_nsec);
+        printf(" %ld\n", sleep_time.tv_nsec);
+    
+    clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
 }
 
 double tankOutAngle(double T)
