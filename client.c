@@ -86,6 +86,7 @@ int initConnection()
 
 int initPlantComm()
 {
+    bool connection_started = false;
     sendMsg("CommTest!", sizeof("CommTest!"));
     while (getAck("Comm#OK!") < 0)
     {
@@ -184,11 +185,15 @@ int sendMsg(char *msg, int msg_size)
 int receiveMsg(char *out_msg, int msg_size)
 {
     int addr_len = sizeof(g_client_addr);
-    if (recvfrom(g_sock, out_msg, msg_size, 0, &g_client_addr, &addr_len) < 0)
+    int received_bytes = recvfrom(g_sock, out_msg, msg_size, 0, &g_client_addr, &addr_len);
+    if (received_bytes < 0)
     {
         printf("[ERROR] recv: %s", strerror(errno));
         return -1;
     }
+    /* a msg pode vir sem \0 no final, entao é adicionado um \0 no final
+        os que ja adicionam nao sao afetados */
+    out_msg[received_bytes] = '\0';
     printf("RECEIVED: %s\n", out_msg);
     return 0;
 }

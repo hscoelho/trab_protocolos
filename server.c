@@ -274,12 +274,17 @@ void *connectionThreadFunction()
 int readMsg(char *msg, int msg_size)
 {
     int client_addr_len = sizeof(g_client_addr);
-    if (recvfrom(g_socket, msg, msg_size, 0, (struct sockaddr *)&g_client_addr, &client_addr_len) < 0)
+    int received_bytes = recvfrom(g_socket, msg, msg_size, 0, (struct sockaddr *)&g_client_addr, &client_addr_len);
+    if (received_bytes < 0)
     // if (recv(g_socket, msg, msg_size, 0) < 0)
     {
         printf("[ERROR recvfrom] %s\n", strerror(errno));
         return -1;
     }
+    /* a msg pode vir sem \0 no final, entao é adicionado um \0 no final
+        os que ja adicionam nao sao afetados */
+    msg[received_bytes] = '\0';
+    printf("RECEIVED: %s\n", msg);
     printf("RECEIVED: %s\n", msg);
     return 0;
 }
