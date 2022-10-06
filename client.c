@@ -14,6 +14,7 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #define MAX_CMD_SIZE 100
+#define MAX_PORT_SIZE 5
 #define PORT 8000
 #define IP_ADDRESS "127.0.0.1"
 #define TARGET_LEVEL 80
@@ -23,7 +24,7 @@ int g_sock;
 struct sockaddr_in g_server_addr;
 struct sockaddr_in g_client_addr;
 
-int initConnection();
+int initConnection(char ip_address[], int server_port);
 
 int initPlantComm();
 int getAck(char *expected_msg);
@@ -48,9 +49,19 @@ void *graphThreadFunction();
 void delayMsec(int msec);
 int getMsecDiff(struct timespec end, struct timespec begin);
 
-int main()
+int main(int argc, char *argv[])
 {
-    if (initConnection() < 0)
+    char *ip_address;
+    int server_port;
+    
+    if (argc != 3) {
+        printf("usage: %s <ip_address> <port>\n", argv[0]);
+        exit(1);
+    }
+
+    ip_address = argv[1];
+    server_port = atoi(argv[2]);
+    if (initConnection(ip_address, server_port) < 0)
         return -1;
 
     if (initPlantComm() < 0)
@@ -70,7 +81,7 @@ int main()
     return 0;
 }
 
-int initConnection()
+int initConnection(char *ip_address, int server_port)
 {
     if ((g_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
     {
@@ -78,10 +89,10 @@ int initConnection()
     }
     printf("Socket created!\n");
 
-    memset(&g_server_addr, 0, sizeof(g_server_addr));      /* Clear struct */
-    g_server_addr.sin_family = AF_INET;                    /* Internet/IP */
-    g_server_addr.sin_addr.s_addr = inet_addr(IP_ADDRESS); /* IP address */
-    g_server_addr.sin_port = htons(PORT);                  /* server port */
+    memset(&g_server_addr, 0, sizeof(g_server_addr));           /* Clear struct */
+    g_server_addr.sin_family = AF_INET;                         /* Internet/IP */
+    g_server_addr.sin_addr.s_addr = inet_addr(ip_address);      /* IP address */
+    g_server_addr.sin_port = htons(server_port);                /* server port */
 
     // while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
     //{
