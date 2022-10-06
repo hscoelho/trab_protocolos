@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include "graphing.h"
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 #define MAX_CMD_SIZE 100
 #define PORT 8000
 #define IP_ADDRESS "127.0.0.1"
@@ -43,6 +46,7 @@ int decodePlantLevel(char *msg);
 
 void *graphThreadFunction();
 void delayMsec(int msec);
+int getMsecDiff(struct timespec end, struct timespec begin);
 
 int main()
 {
@@ -133,8 +137,10 @@ void *controlThreadFunction()
 {
     int i = 0;
     bool is_valve_open = false;
+    struct timespec start_time, end_time;
     while (1)
     {
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
         int plant_level = setCurrPlantLevel(getServerPlantLevel());
 
         int seq = rand() % 10000;
@@ -168,6 +174,7 @@ void *controlThreadFunction()
             }
         }
 
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
         delayMsec(500);
     }
 }
@@ -262,21 +269,24 @@ void *graphThreadFunction()
 
     data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
 
-    struct timespec start_time;
+    struct timespec start_time, curr_time, end_time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
-    time_t start_time_s = start_time.tv_sec;
 
     while (true)
     {
-        struct timespec curr_time;
         clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
-        time_t curr_time_s = curr_time.tv_sec;
         int curr_plant = getCurrPlantLevel();
         int curr_valve = getCurrValveLevel();
-        datadraw(data, curr_time_s - start_time_s, curr_plant, curr_valve, 0);
+
+        double graph_time = (curr_time.tv_sec - start_time.tv_sec) +
+                            (curr_time.tv_nsec / 1000000 - start_time.tv_nsec / 100000) / 1000.0;
+
+        datadraw(data, graph_time, curr_plant, curr_valve, 0);
 
         quitevent();
-        delayMsec(50);
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        delayMsec(MAX(0, 50 - getMsecDiff(end_time, curr_time)));
     }
 }
 
@@ -290,4 +300,11 @@ void delayMsec(int msec)
     }
     sleep_time.tv_nsec = msec * 1000000;
     clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
+}
+
+int getMsecDiff(struct timespec end, struct timespec begin)
+{
+    int sec = end.tv_sec - begin.tv_sec;
+    int nsec = end.tv_nsec - begin.tv_nsec;
+    return sec * 1000 + nsec / 1000000;
 }

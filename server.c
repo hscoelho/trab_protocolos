@@ -10,6 +10,9 @@
 #include <unistd.h>
 #include "graphing.h"
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 #define SEQ_BUF_SIZE 5000
 #define MAX_CMD_SIZE 100
 
@@ -83,6 +86,7 @@ void *graphThreadFunction();
 float clamp(float value, float min, float max);
 double tankOutAngle(double T);
 void delayMsec(int msec);
+int getMsecDiff(struct timespec end, struct timespec begin);
 
 int main(int argc, char *argv[])
 {
@@ -124,7 +128,7 @@ void *plantThreadFunction()
 
     while (1)
     {
-        // clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
         switch (command.cmd_id)
         {
@@ -183,12 +187,12 @@ void *plantThreadFunction()
 
         command.cmd_id = Unknown;
 
-        // clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
 
         // struct timespec diff = { .tv_sec = end_time.tv_sec - start_time.tv_sec,
         //     .tv_nsec = end_time.tv_nsec - start_time.tv_nsec };
 
-        delayMsec(10);
+        delayMsec(MAX(0, 10 - getMsecDiff(end_time, start_time)));
     }
 }
 
@@ -202,6 +206,13 @@ void delayMsec(int msec)
     }
     sleep_time.tv_nsec = msec * 1000000;
     clock_nanosleep(CLOCK_MONOTONIC, 0, &sleep_time, NULL);
+}
+
+int getMsecDiff(struct timespec end, struct timespec begin)
+{
+    int sec = end.tv_sec - begin.tv_sec;
+    int nsec = end.tv_nsec - begin.tv_nsec;
+    return sec * 1000 + nsec / 1000000;
 }
 
 double tankOutAngle(double T)
@@ -284,7 +295,7 @@ void *connectionThreadFunction()
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
 
-        delayMsec(50);
+        delayMsec(5);
     }
 }
 
@@ -499,19 +510,20 @@ void *graphThreadFunction()
 
     data = datainit(SCREEN_W, SCREEN_H, 300, 110, tank.level, tank.in_angle, tank.out_angle);
 
-    struct timespec start_time;
+    struct timespec start_time, curr_time, end_time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
-    time_t start_time_s = start_time.tv_sec;
 
     while (true)
     {
-        struct timespec curr_time;
+
         clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
-        time_t curr_time_s = curr_time.tv_sec;
-        datadraw(data, curr_time_s - start_time_s, tank.level, tank.in_angle, tank.out_angle);
+        double graph_time = (curr_time.tv_sec - start_time.tv_sec) +
+                            (curr_time.tv_nsec / 1000000 - start_time.tv_nsec / 100000) / 1000.0;
+        datadraw(data, graph_time, tank.level * 100.0, tank.in_angle, tank.out_angle);
 
         quitevent();
-        delayMsec(50);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        delayMsec(MAX(0, 50 - getMsecDiff(end_time, curr_time)));
     }
 }
 
