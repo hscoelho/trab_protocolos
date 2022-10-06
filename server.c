@@ -90,8 +90,9 @@ int getMsecDiff(struct timespec end, struct timespec begin);
 int main(int argc, char *argv[])
 {
     int server_port;
-    
-    if (argc != 2) {
+
+    if (argc != 2)
+    {
         printf("usage: %s <port>\n", argv[0]);
         return -1;
     }
@@ -237,10 +238,10 @@ int initConnection(int server_port)
         return -1;
     printf("Socket created!\n");
 
-    memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
-    g_server_addr.sin_family = AF_INET;                     /* Internet/IP */
-    g_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);      /* Incoming addr */
-    g_server_addr.sin_port = htons(server_port);            /* server port */
+    memset(&g_server_addr, 0, sizeof(g_server_addr));  /* Clear struct */
+    g_server_addr.sin_family = AF_INET;                /* Internet/IP */
+    g_server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* Incoming addr */
+    g_server_addr.sin_port = htons(server_port);       /* server port */
 
     if (bind(g_socket, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
         return -1;
@@ -293,16 +294,11 @@ int readMsg(char *msg, int msg_size)
         os que ja adicionam nao sao afetados */
     msg[received_bytes] = '\0';
     printf("RECEIVED: %s\n", msg);
-    printf("RECEIVED: %s\n", msg);
     return 0;
 }
 
 struct Command decodeCmd(char *message, int message_size)
 {
-    // TODO: Testar pra quando a mensagem não estiver no formato padrão: OpenValve##⟨value⟩!;
-
-    // char buf[] = "GetLevel!"
-    // char buf[] = "SetMax#⟨value⟩!";
     char buf[MAX_CMD_SIZE];
     snprintf(buf, sizeof(buf), "%s", message); // é feito isso porque o strtok é destrutivo
     int i = 0;
@@ -405,7 +401,6 @@ bool findSeq(int cmd_seq, int *seq_buf, int buf_size)
 void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
 {
     char ack_msg[MAX_CMD_SIZE];
-    snprintf(ack_msg, sizeof(ack_msg), "");
     switch (cmd.cmd_id)
     {
     case OpenValve:

@@ -51,8 +51,9 @@ int main(int argc, char *argv[])
 {
     char *ip_address;
     int server_port;
-    
-    if (argc != 3) {
+
+    if (argc != 3)
+    {
         printf("usage: %s <ip_address> <port>\n", argv[0]);
         exit(1);
     }
@@ -85,15 +86,10 @@ int initConnection(char *ip_address, int server_port)
         return -1;
     printf("Socket created!\n");
 
-    memset(&g_server_addr, 0, sizeof(g_server_addr));           /* Clear struct */
-    g_server_addr.sin_family = AF_INET;                         /* Internet/IP */
-    g_server_addr.sin_addr.s_addr = inet_addr(ip_address);      /* IP address */
-    g_server_addr.sin_port = htons(server_port);                /* server port */
-
-    // while (connect(g_sock, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
-    //{
-    // }
-    // printf("Connection established!\n");
+    memset(&g_server_addr, 0, sizeof(g_server_addr));      /* Clear struct */
+    g_server_addr.sin_family = AF_INET;                    /* Internet/IP */
+    g_server_addr.sin_addr.s_addr = inet_addr(ip_address); /* IP address */
+    g_server_addr.sin_port = htons(server_port);           /* server port */
 }
 
 int initPlantComm()
