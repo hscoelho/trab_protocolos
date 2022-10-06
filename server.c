@@ -367,8 +367,9 @@ bool findSeq(int cmd_seq, int *seq_buf, int buf_size)
     {
         if (seq_buf[i] == cmd_seq)
         {
-            printf("SEQ %d ALREADY RECEIVED!\n", seq_buf[i]);
-            return true;
+            printf("WARNING!! SEQ %d ALREADY RECEIVED!\n", seq_buf[i]);
+            return false; // para nao parar o server isso virou um "warning"
+            // return true;
         }
         i++;
     }
