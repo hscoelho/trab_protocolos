@@ -16,7 +16,7 @@
 #define MAX_CMD_SIZE 100
 #define IP_ADDRESS "127.0.0.1"
 #define TARGET_LEVEL 80
-#define VALVE_OPENING 100
+#define VALVE_OPENING 70
 
 int g_sock;
 struct sockaddr_in g_server_addr;
@@ -113,13 +113,12 @@ int initPlantComm()
     int seq = rand() % 10000;
     char cmd[MAX_CMD_SIZE];
     char ack[MAX_CMD_SIZE];
-    snprintf(cmd, sizeof(cmd), "CloseValve#%d#%d!", seq, 100);
+    snprintf(cmd, sizeof(cmd), "CloseValve#%d#%d!", seq, 50);
     snprintf(ack, sizeof(ack), "Close#%d!", seq);
     setCurrValveLevel(0);
     sendMsg(cmd, sizeof(cmd));
     if (getAck(ack) < 0)
         printf("Received wrong ack!");
-    sleep(1); // tempo para fechar a valvula
 }
 
 int getAck(char *expected_msg)
@@ -266,7 +265,7 @@ void *graphThreadFunction()
 {
     Tdataholder *data;
 
-    data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 0);
+    data = datainit(SCREEN_W, SCREEN_H, 300, 110, 0, 0, 110);
 
     struct timespec start_time, curr_time, end_time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
@@ -280,7 +279,7 @@ void *graphThreadFunction()
         double graph_time = (curr_time.tv_sec - start_time.tv_sec) +
                             (curr_time.tv_nsec / 1000000 - start_time.tv_nsec / 100000) / 1000.0;
 
-        datadraw(data, graph_time, curr_plant, curr_valve, 0);
+        datadraw(data, graph_time, curr_plant, curr_valve, 110);
 
         quitevent();
 
