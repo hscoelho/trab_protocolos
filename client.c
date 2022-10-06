@@ -14,8 +14,6 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 #define MAX_CMD_SIZE 100
-#define MAX_PORT_SIZE 5
-#define PORT 8000
 #define IP_ADDRESS "127.0.0.1"
 #define TARGET_LEVEL 80
 #define VALVE_OPENING 100
@@ -84,9 +82,7 @@ int main(int argc, char *argv[])
 int initConnection(char *ip_address, int server_port)
 {
     if ((g_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-    {
         return -1;
-    }
     printf("Socket created!\n");
 
     memset(&g_server_addr, 0, sizeof(g_server_addr));           /* Clear struct */
@@ -126,9 +122,7 @@ int initPlantComm()
     setCurrValveLevel(0);
     sendMsg(cmd, sizeof(cmd));
     if (getAck(ack) < 0)
-    {
         printf("Received wrong ack!");
-    }
     sleep(1); // tempo para fechar a valvula
 }
 
@@ -180,9 +174,7 @@ void *controlThreadFunction()
         {
             sendMsg(cmd, sizeof(cmd));
             if (getAck(ack) < 0)
-            {
                 printf("Received wrong ack!");
-            }
         }
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);

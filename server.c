@@ -93,14 +93,12 @@ int main(int argc, char *argv[])
     
     if (argc != 2) {
         printf("usage: %s <port>\n", argv[0]);
-        exit(1);
+        return -1;
     }
 
     server_port = atoi(argv[1]);
     if (initConnection(server_port) < 0)
-    {
         return -1;
-    }
 
     pthread_t connection_thread;
     pthread_create(&connection_thread, NULL, connectionThreadFunction, NULL);
@@ -219,41 +217,24 @@ int getMsecDiff(struct timespec end, struct timespec begin)
 double tankOutAngle(double T)
 {
     if (T <= 0)
-    {
         return 50;
-    }
-    else if (T <= 20000)
-    {
+    if (T <= 20000)
         return 50 + T / 400;
-    }
-    else if (T <= 30000)
-    {
+    if (T <= 30000)
         return 100;
-    }
-    else if (T <= 50000)
-    {
+    if (T <= 50000)
         return 100 - (T - 30000) / 250;
-    }
-    else if (T <= 70000)
-    {
+    if (T <= 70000)
         return 20 - (T - 50000) / 1000;
-    }
-    else if (T <= 100000)
-    {
+    if (T <= 100000)
         return 40 + 20 * cos((T - 70000) * 2 * M_PI / 10000);
-    }
-    else
-    {
-        return 100;
-    }
+    return 100;
 }
 
 int initConnection(int server_port)
 {
     if ((g_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-    {
         return -1;
-    }
     printf("Socket created!\n");
 
     memset(&g_server_addr, 0, sizeof(g_server_addr));       /* Clear struct */
@@ -262,9 +243,7 @@ int initConnection(int server_port)
     g_server_addr.sin_port = htons(server_port);            /* server port */
 
     if (bind(g_socket, (struct sockaddr *)&g_server_addr, sizeof(g_server_addr)) < 0)
-    {
         return -1;
-    }
     printf("Socket bound!\n");
 
     while (!g_plant_started)
@@ -328,7 +307,7 @@ struct Command decodeCmd(char *message, int message_size)
     snprintf(buf, sizeof(buf), "%s", message); // é feito isso porque o strtok é destrutivo
     int i = 0;
     char *array[3];
-    memset(array, NULL, sizeof(array));
+    memset(array, '\0', sizeof(array));
 
     char *p = strtok(buf, "#");
     while (p != NULL)
@@ -339,19 +318,13 @@ struct Command decodeCmd(char *message, int message_size)
 
     // Testa se é <keyword>!
     if (array[1] == NULL)
-    {
         array[0] = strtok(array[0], "!");
-    }
     // Testa se é <keyword>#<value>!
     else if (array[2] == NULL)
-    {
         array[1] = strtok(array[1], "!");
-    }
     // Senão, <keyword>#<seq>#<value>!
     else
-    {
         array[2] = strtok(array[2], "!");
-    }
 
     // transforma array em struct Command
     // se tiver erro ele não modifica e mantém o Unknown
@@ -531,13 +504,8 @@ void *graphThreadFunction()
 float clamp(float value, float min, float max)
 {
     if (value >= max)
-    {
         return max;
-    }
     else if (value <= min)
-    {
         return min;
-    }
-
     return value;
 }
