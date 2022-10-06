@@ -37,13 +37,6 @@ struct Command
     int value;
 };
 
-struct Command command =
-    {
-        .cmd_id = Unknown,
-        .seq = 0,
-        .value = 0,
-};
-
 struct Tank
 {
     double level;
@@ -51,15 +44,21 @@ struct Tank
     double in_angle;
     double out_angle;
     double time;
+    double delta;
 };
 
-struct Tank tank =
+struct Tank g_tank =
     {
         .level = 0.4,
         .max_flux = 100,
         .in_angle = 50,
         .out_angle = 0,
-        .time = 0};
+        .time = 0,
+        .delta = 0.5};
+
+pthread_mutex_t mtx_tank = PTHREAD_MUTEX_INITIALIZER;
+struct Tank getTank();
+struct Tank setTank(struct Tank);
 
 int g_socket;
 struct sockaddr_in g_server_addr;
@@ -117,7 +116,6 @@ int main(int argc, char *argv[])
 
 void *plantThreadFunction()
 {
-    float delta = 0;
     float in_flux = 0;
     float out_flux = 0;
 
@@ -130,48 +128,32 @@ void *plantThreadFunction()
     {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
-        switch (command.cmd_id)
+        struct Tank tank = getTank();
+
+        if (tank.delta > 0)
         {
-        case OpenValve:
-            delta += command.value;
-            break;
-
-        case CloseValve:
-            delta -= command.value;
-            break;
-
-        case SetMax:
-            tank.max_flux = command.value;
-            break;
-
-        default:
-            break;
-        }
-
-        if (delta > 0)
-        {
-            if (delta < 0.01 * dT)
+            if (tank.delta < 0.01 * dT)
             {
-                tank.in_angle = clamp(tank.in_angle + delta, 0, 100);
-                delta = 0;
+                tank.in_angle = clamp(tank.in_angle + tank.delta, 0, 100);
+                tank.delta = 0;
             }
             else
             {
                 tank.in_angle = clamp(tank.in_angle + 0.01 * dT, 0, 100);
-                delta -= 0.01 * dT;
+                tank.delta -= 0.01 * dT;
             }
         }
         else
         {
-            if (delta > -0.01 * dT)
+            if (tank.delta > -0.01 * dT)
             {
-                tank.in_angle = clamp(tank.in_angle + delta, 0, 100);
-                delta = 0;
+                tank.in_angle = clamp(tank.in_angle + tank.delta, 0, 100);
+                tank.delta = 0;
             }
             else
             {
                 tank.in_angle = clamp(tank.in_angle - 0.01 * dT, 0, 100);
-                delta += 0.01 * dT;
+                tank.delta += 0.01 * dT;
             }
         }
 
@@ -185,13 +167,9 @@ void *plantThreadFunction()
 
         tank.time += dT;
 
-        command.cmd_id = Unknown;
+        setTank(tank);
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
-
-        // struct timespec diff = { .tv_sec = end_time.tv_sec - start_time.tv_sec,
-        //     .tv_nsec = end_time.tv_nsec - start_time.tv_nsec };
-
         delayMsec(MAX(0, 10 - getMsecDiff(end_time, start_time)));
     }
 }
@@ -272,7 +250,6 @@ void *connectionThreadFunction()
 
         if (!findSeq(cmd.seq, seq_buf, seq_buff_size))
         {
-            command = cmd;
             handleCmd(cmd, seq_buf, &seq_buff_size);
         }
 
@@ -400,6 +377,7 @@ bool findSeq(int cmd_seq, int *seq_buf, int buf_size)
 
 void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
 {
+    struct Tank tank = getTank();
     char ack_msg[MAX_CMD_SIZE];
     switch (cmd.cmd_id)
     {
@@ -443,6 +421,25 @@ void handleCmd(struct Command cmd, int *seq_buf, int *seq_buf_size)
         break;
     }
 
+    switch (cmd.cmd_id)
+    {
+    case OpenValve:
+        tank.delta += cmd.value;
+        break;
+
+    case CloseValve:
+        tank.delta -= cmd.value;
+        break;
+
+    case SetMax:
+        tank.max_flux = cmd.value;
+        break;
+
+    default:
+        break;
+    }
+
+    setTank(tank);
     sendMsg(ack_msg, sizeof(ack_msg));
 }
 
@@ -477,15 +474,17 @@ void *graphThreadFunction()
 {
     Tdataholder *data;
 
-    data = datainit(SCREEN_W, SCREEN_H, 300, 110, tank.level, tank.in_angle, tank.out_angle);
+    data = datainit(SCREEN_W, SCREEN_H, 300, 110, 40, 50, 0);
 
     struct timespec start_time, curr_time, end_time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 
     while (true)
     {
-
         clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
+
+        struct Tank tank = getTank();
+
         double graph_time = (curr_time.tv_sec - start_time.tv_sec) +
                             (curr_time.tv_nsec / 1000000 - start_time.tv_nsec / 100000) / 1000.0;
         datadraw(data, graph_time, tank.level * 100.0, tank.in_angle, tank.out_angle);
@@ -503,4 +502,20 @@ float clamp(float value, float min, float max)
     else if (value <= min)
         return min;
     return value;
+}
+
+struct Tank getTank()
+{
+    pthread_mutex_lock(&mtx_tank);
+    struct Tank tank = g_tank;
+    pthread_mutex_unlock(&mtx_tank);
+    return tank;
+}
+
+struct Tank setTank(struct Tank new_tank)
+{
+    pthread_mutex_lock(&mtx_tank);
+    g_tank = new_tank;
+    pthread_mutex_unlock(&mtx_tank);
+    return new_tank;
 }
