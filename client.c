@@ -16,7 +16,7 @@
 #define MAX_CMD_SIZE 100
 #define IP_ADDRESS "127.0.0.1"
 #define TARGET_LEVEL 80
-#define VALVE_OPENING 70
+#define VALVE_OPENING 100
 
 int g_sock;
 struct sockaddr_in g_server_addr;
